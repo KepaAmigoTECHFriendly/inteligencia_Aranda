@@ -48,12 +48,12 @@ con <- dbConnect(RPostgres::Postgres(), dbname = db, host=host_db, port=db_port,
 
 
 # ESTABLECIMIENTOS
-df_establecimientos <- read.csv("C:/TechFriendly/Aranda de Duero/Inteligencia empresarial/tabla_total.csv", header = TRUE, sep = ";", stringsAsFactors = FALSE, encoding = "UTF-8", dec = ",")
+df_establecimientos <- read.csv("tabla_total.csv", header = TRUE, sep = ";", stringsAsFactors = FALSE, encoding = "UTF-8", dec = ",")
 colnames(df_establecimientos) <- c("Establecimiento","Valoración","Reviews","Categoría","Latitud","Longitud","Dirección","Código","Web","Teléfono","Regentada_mujeres","Horarios","Cierre temporal","URL Google Maps")
 df_establecimientos <- df_establecimientos[grep("aranda de duero",tolower(df_establecimientos$Código)),]
 
 # TOPICS
-df_topics <- read.csv("C:/TechFriendly/Aranda de Duero/Inteligencia empresarial/topics_total.csv", header = TRUE, sep = ";", stringsAsFactors = FALSE, encoding = "UTF-8", dec = ",")
+df_topics <- read.csv("topics_total.csv", header = TRUE, sep = ";", stringsAsFactors = FALSE, encoding = "UTF-8", dec = ",")
 df_topics <- df_topics[,1:(ncol(df_topics)-1)]
 colnames(df_topics) <- c("Establecimiento","Valoración","Reviews","Categoría","Latitud","Longitud","Código","URL Google Maps","Topics")
 df_topics <- df_topics[grep("aranda de duero",tolower(df_topics$Código)),]
