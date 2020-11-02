@@ -1,0 +1,70 @@
+/* Hoja de estilos */
+
+#wrapper>header {
+    position: fixed;
+    display: block;
+    z-index: 100;
+    width: 100%;
+    max-width: 100%;
+    overflow: visible;
+    background-color: #fff;
+}
+
+#wrapper>header>.module-grid {
+    height: 55px;
+	margin-top: 10px;
+    padding: 0px 12px 0px 0px;
+    border-bottom: 1px solid #ccc;
+    z-index: 9999;
+    -webkit-transition: 0.35s ease all;
+    -moz-transition: 0.35s ease all;
+    -o-transition: 0.35s ease all;
+    transition: 0.35s ease all;
+    -webkit-box-sizing: content-box;
+    -moz-box-sizing: content-box;
+    -ms-box-sizing: content-box;
+    -o-box-sizing: content-box;
+}
+
+#wrapper .module-grid {
+    -webkit-box-sizing: border-box;
+    -moz-box-sizing: border-box;
+    -ms-box-sizing: border-box;
+    -o-box-sizing: border-box;
+    box-sizing: border-box;
+    width: 100%;
+	max-width: 1280px;
+    float: none;
+    clear: both;
+    display: block;
+    margin: 0 auto;
+}
+
+#wrapper>header>.module-grid a img{
+    -webkit-transition: 0.35s ease all;
+    -moz-transition: 0.35s ease all;
+    -o-transition: 0.35s ease all;
+    transition: 0.35s ease all;
+    display: block;
+    width: 250px;
+    height: 37px;
+}
+
+#wrapper>section {
+    position: fixed;
+    display: block;
+	margin-top: 70px;
+    width: 100%;
+    max-width: 100%;
+    overflow: visible;
+    background-color: #fff;
+	font-family: "Source Sans Pro",sans-serif; 
+	color: #463c324; 
+	font-size: 16px;
+}
+
+
+
+
+
+
