@@ -318,7 +318,7 @@ ui <- fluidPage(style = "width: 100%; height: 100%;",
                                                     #c("Todos",substring(unique(df_censo$CNAE),1,2)[order(substring(unique(df_censo$CNAE),1,2))][-1])
                                                     c("Todos",unique(df_establecimientos$Categoría)[order(unique(df_establecimientos$Categoría))])
                                         ),
-                                        sliderInput("reviews", "Filtro por valoración",min(as.numeric(unique(df_establecimientos$Reviews))),max(as.numeric(unique(df_establecimientos$Reviews))),c(5,100),step = 10
+                                        sliderInput("reviews", "Filtro por número de reseñas",min(as.numeric(unique(df_establecimientos$Reviews))),max(as.numeric(unique(df_establecimientos$Reviews))),c(5,100),step = 10
                                         ),
                                         sliderInput("valoracion", "Filtro por valoración",min(as.numeric(unique(df_establecimientos$Valoración))),max(as.numeric(unique(df_establecimientos$Valoración))),c(0,3),step = 0.5
                                         ),
@@ -2567,7 +2567,7 @@ server <- function(input, output, session) {
       
       # Links URL y RRSS
       df$Web <- paste0("<a href='", df$Web,"' target='_blank'>", df$Web,"</a>")
-      df$`URL Google Maps` <- paste0("<a href='", df$`URL Google Maps`,"' target='_blank'>", df$`URL Google Maps`,"</a>")
+      df$`URL Google Maps` <- paste0("<a href='", df$`URL Google Maps`,"' target='_blank'>", "Google Maps","</a>")
 
       
       # Manejo de error: "inexistencia de datos para los filtros seleccionados" de cara al usuario
