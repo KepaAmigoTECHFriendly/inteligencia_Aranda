@@ -325,7 +325,10 @@ ui <- fluidPage(style = "width: 100%; height: 100%;",
                                         #div(style = "color: black; font-size:14px; font-weight: bold;","Filtro redes sociales"),
                                         radioButtons("web", "Filtro por web",
                                                      choices = list("Con web" = 1, "Sin web" = 2, "Todos" = 3), selected = 3
-                                                     ),
+                                        ),
+                                        radioButtons("cerradas", "Filtro por estado",
+                                                     choices = list("Abierto" = 1, "Cerrado temporalmente" = 2, "Todos" = 3), selected = 3
+                                        ),
                                         downloadButton("downloadDataestablecimientos_csv", "Descargar CSV"),
                                         width = 3,
                                       ),
@@ -626,10 +629,10 @@ server <- function(input, output, session) {
         #)
 
         # 2)Filtro Agrupaciones
-        if(input$Municipio_principal == "Burgos provincia"){
+        if(input$comparaciones == "Burgos provincia"){
           df <- df
         }else{
-          df <- df[df$Municipio == input$Municipio_principal,]
+          df <- df[df$Municipio == input$Municipio_comparaciones,]
         }
         
         if(nrow(df) == 0){
@@ -813,6 +816,8 @@ server <- function(input, output, session) {
         }
         
         df_comparativa <- func_estadistica_basica(datos_filtrados_borme_comparativa())
+        
+        print(df_comparativa)
 
         if(!is.data.frame(df_comparativa)){
           df <- rbind(df_ref,df_representacion_en_territorio)
@@ -2510,6 +2515,15 @@ server <- function(input, output, session) {
         df <- df[df$Web != 0 ,]
       }else if(as.numeric(input$web) == 2){
         df <- df[df$Web == 0,]
+      }else{
+        df <- df
+      }
+      
+      # 5) Filtro estado
+      if(as.numeric(input$cerradas) == 1){
+        df <- df[df$`Cierre temporal` == "-" ,]
+      }else if(as.numeric(input$cerradas) == 2){
+        df <- df[df$`Cierre temporal` != "-",]
       }else{
         df <- df
       }
