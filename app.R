@@ -65,6 +65,8 @@ df_establecimientos$Topics <- df_topics$Topics[match(df_establecimientos$Estable
 
 # CENSO
 df_censo <- read.csv("censo_aranda_duero.csv", header = TRUE, sep = ";", stringsAsFactors = FALSE, encoding = "latin1", dec = ",")
+print(nrow(df_censo))
+df_censo$Índice_crec_interanual_ventas <- ifelse(any(grepl("[0-9]",df_censo$Índice_crec_interanual_ventas)),df_censo$Índice_crec_interanual_ventas,"-")
 
 df_censo$Latitud[df_censo$Denominación_social == "Calidad Pascual Sau"] <- 41.677336
 df_censo$Longitud[df_censo$Denominación_social == "Calidad Pascual Sau"] <- -3.700250
@@ -2386,9 +2388,15 @@ server <- function(input, output, session) {
       df <- df[as.Date(as.character(df$`Fecha_constitución`), "%d/%m/%Y") >= as.Date(input$fechas[1]) &
                  as.Date(as.character(df$`Fecha_constitución`)) <= as.Date(input$fechas[2]) |
                  df$`Fecha_constitución` == "-",]
+      
+      print("1")
+      print(nrow(df))
 
       # 2) Filtro por num empleados
       df <- df[as.numeric(gsub("[ (].*","",df$Empleados)) >= input$empleados[1] & as.numeric(gsub("[ (].*","",df$Empleados)) <= input$empleados[2],]
+      
+      print("2")
+      print(nrow(df))
 
       # 3) Filtro por división CNAE
       # Manejo de error: "inexistencia de datos para los filtros seleccionados" de cara al usuario
@@ -2444,6 +2452,9 @@ server <- function(input, output, session) {
         df <- df[match(codigos_a_extraer,gsub("([0-9]+).*$", "\\1",df$CNAE)),]
       }
       
+      print("3")
+      print(nrow(df))
+      
       # 4) Filtro por ubicación
       if(input$calle == "Todas"){
         df <- df
@@ -2451,12 +2462,18 @@ server <- function(input, output, session) {
         df <- df[grep(input$calle,gsub(",.*","",df$`Domicilio_social`)),]
       }
       
+      print("4")
+      print(nrow(df))
+      
       # 5) Filtro extinguidas
       if(input$extinguidas == TRUE){
         df <- df[df$Estado == "Activa",]
       }else{
         df <- df
       }
+      
+      print("5")
+      print(nrow(df))
       
       df[df == ""] <- "-"
       
@@ -2469,20 +2486,29 @@ server <- function(input, output, session) {
         df <- df
       }
       
+      print("6")
+      print(nrow(df))
+      
+      
       # 7) Filtrad por palabra clave
       if(input$palabra_clave != ""){
         #Filtrado por búsqueda de palabras clave. Se realiza máscara OR con resultados booleanos.
         filtrado_palabra_clave <- apply(as.data.frame(mapply(grepl, input$palabra_clave, df, ignore.case = T)),1,any)
+        filtrado_palabra_clave <- apply(as.data.frame(mapply(grepl, input$palabra_clave, df[,c(1:4)], ignore.case = T)),1,any)
+        df <- subset(df, filtrado_palabra_clave)
       }else{
-        filtrado_palabra_clave <- df
+        df <- df
       }
       
-      filtrado_palabra_clave <- apply(as.data.frame(mapply(grepl, input$palabra_clave, df[,c(1:4)], ignore.case = T)),1,any)
-      
-      df <- subset(df, filtrado_palabra_clave)
+      print("7")
+      print(nrow(df))
       
       df <- df[,c(1,2,5,6,7,8,10,9,21,11,12,20,23,19,18,16,15,17,13,14,3,4)]
-      df <- df[!is.na(df$URL),]
+      
+      print("8")
+      print(nrow(df))
+      
+      df
       
     })
     
