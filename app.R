@@ -65,7 +65,7 @@ df_establecimientos$Topics <- df_topics$Topics[match(df_establecimientos$Estable
 
 # CENSO
 df_censo <- read.csv("censo_aranda_duero.csv", header = TRUE, sep = ";", stringsAsFactors = FALSE, encoding = "latin1", dec = ",")
-df_censo$Índice_crec_interanual_ventas <- ifelse(any(grepl("[0-9]",df_censo$Índice_crec_interanual_ventas)),df_censo$Índice_crec_interanual_ventas,"-")
+#df_censo$Índice_crec_interanual_ventas <- ifelse(any(grepl("[0-9]",df_censo$Índice_crec_interanual_ventas)),df_censo$Índice_crec_interanual_ventas,"-")
 
 df_censo$Latitud[df_censo$Denominación_social == "Calidad Pascual Sau"] <- 41.677336
 df_censo$Longitud[df_censo$Denominación_social == "Calidad Pascual Sau"] <- -3.700250
@@ -2093,6 +2093,49 @@ server <- function(input, output, session) {
     output$lineas_borme_anual_anterior_eb2 <- renderPlotly({
       
       df <- df_lineas_ano_a_ano_anterior()
+
+      df8 <- datos_filtrados_borme()
+      
+      # Manejo de error
+      shiny::validate(
+        need(is.data.frame(df8),
+             "")
+      )
+      shiny::validate(
+        need(nrow(df) != 0,
+             "")
+      )
+      
+      # Manejo de error
+      df9 <- estadistica_basica_2()
+      # Manejo de error
+      shiny::validate(
+        need(is.data.frame(df9),
+             "")
+      )
+      shiny::validate(
+        need(nrow(df9) != 0,
+             "")
+      )
+      
+      df8$Fecha <- as.Date(df8$Fecha, format="%d/%m/%Y")
+      df8$Fecha <- as.Date(df8$Fecha, format="%Y/%m/%d")
+      df8$Mes <- format(as.Date(df8$Fecha), "%Y-%m")  #Extracción de meses
+      
+      df8 <- recuento_estadistica_basica_2(df8,1)  #Flag 1 para devolución recuento
+      
+      df8 <- df8 %>% 
+        dplyr::group_by(`Forma Jurídica`,Mes) %>% 
+        dplyr::ungroup() %>%
+        tidyr::complete(`Forma Jurídica`, Mes, fill = list(Recuento = 0))
+
+      # generación de nuvas formas jurídicas (forma + año) y paso de año-mes a mes
+      df8$`Forma Jurídica` <- paste(df8$`Forma Jurídica`,substring(df8$Mes,1,4),sep = "-")
+      df$`Forma Jurídica` <- paste(df$`Forma Jurídica`,substring(df$Mes,1,4),sep = "-")
+      df8$Mes <- substring(df8$Mes,6,7)
+      df$Mes <- substring(df$Mes,6,7)
+      
+      df <- rbind(df8,df)
       
       # Manejo de error: "inexistencia de datos para los filtros seleccionados" de cara al usuario
       shiny::validate(
@@ -2106,7 +2149,8 @@ server <- function(input, output, session) {
              "¡Atención!\nNo existen datos disponibles para el valor de los filtros seleccionados.\nModifica el valor de los filtros si lo desea.")
       )
       
-      año <- year(input$fechas_listado_borme[1]) - 1
+      #año <- year(input$fechas_listado_borme[1]) - 1
+      año <- "comparativa"
 
       p <- df
       p <- p %>% plot_ly(x = ~Mes, y = ~Recuento, fill= ~`Forma Jurídica`, color = ~`Forma Jurídica`)
@@ -2389,7 +2433,15 @@ server <- function(input, output, session) {
                  df$`Fecha_constitución` == "-",]
 
       # 2) Filtro por num empleados
-      df <- df[as.numeric(gsub("[ (].*","",df$Empleados)) >= input$empleados[1] & as.numeric(gsub("[ (].*","",df$Empleados)) <= input$empleados[2],]
+      # Lógica selección empleados == 2- cuando input empleados == 0
+      if(input$empleados[1] == 0){
+        inicial_0 <- "-"
+        df_sin_info_empleados <- df[df$Empleados == inicial_0,] 
+        df <- df[as.numeric(gsub("[ (].*","",df$Empleados)) >= input$empleados[1] & as.numeric(gsub("[ (].*","",df$Empleados)) <= input$empleados[2],]
+        df <- rbind(df,df_sin_info_empleados)
+      }else{
+        df <- df[as.numeric(gsub("[ (].*","",df$Empleados)) >= input$empleados[1] & as.numeric(gsub("[ (].*","",df$Empleados)) <= input$empleados[2],]
+      }
 
       # 3) Filtro por división CNAE
       # Manejo de error: "inexistencia de datos para los filtros seleccionados" de cara al usuario
@@ -2397,6 +2449,7 @@ server <- function(input, output, session) {
         need(!is.null(input$div_cnae),
              "Atención!\nNo se ha seleccionado ningún CNAE.\nSeleccione un CNAE por favor.")
       )
+      
       if(input$div_cnae == "Todos"){  
         df <- df
       }else if(length(input$div_cnae) > 1){
@@ -2410,7 +2463,7 @@ server <- function(input, output, session) {
                                                            (grep(letters[pos_letra_demandada + 1],df_cnae$COD_CNAE2009,ignore.case = TRUE) - 1)
                                       )]
             )
-            codigos_2 <-  codigos_2[nchar(codigos_2) > 3]
+            #codigos_2 <-  codigos_2[nchar(codigos_2) > 3]
           }else{
             codigo_seleccionado <- gsub("([0-9]+).*$", "\\1", input$div_cnae[i])
             numero_de_carct <- nchar(codigo_seleccionado)
@@ -2418,11 +2471,11 @@ server <- function(input, output, session) {
                                       df_cnae$completo[grep(codigo_seleccionado,substring(df_cnae$COD_CNAE2009,1,numero_de_carct))]
             )
             #codigos_a_extraer <- codigos_a_extraer[nchar(codigos_a_extraer) > 3]
-            codigos_2 <- codigos_2[nchar(codigos_2) > 3]
+            #codigos_2 <- codigos_2[nchar(codigos_2) > 3]
           }
           codigos_a_extraer <- c(codigos_a_extraer, codigos_2)
         }
-        df <- df[match(codigos_a_extraer,gsub("([0-9]+).*$", "\\1",df$CNAE)),]
+        df <- df[which(gsub("([0-9]+).*$", "\\1",df$CNAE) %in% codigos_a_extraer),]
 
       }else{
         if(grepl("[A-Z]",substring(input$div_cnae,1,1))){
@@ -2433,16 +2486,16 @@ server <- function(input, output, session) {
                                                          (grep(letters[pos_letra_demandada + 1],df_cnae$COD_CNAE2009,ignore.case = TRUE) - 1)
                                     )]
           )
-          codigos_a_extraer <- codigos_a_extraer[nchar(codigos_a_extraer) > 3]
+          #codigos_a_extraer <- codigos_a_extraer[nchar(codigos_a_extraer) > 3]
         }else{
           codigo_seleccionado <- gsub("([0-9]+).*$", "\\1", input$div_cnae)
           numero_de_carct <- nchar(codigo_seleccionado)
           codigos_a_extraer <- gsub("([0-9]+).*$", "\\1",
                                     df_cnae$completo[grep(codigo_seleccionado,substring(df_cnae$COD_CNAE2009,1,numero_de_carct))]
           )
-          codigos_a_extraer <- codigos_a_extraer[nchar(codigos_a_extraer) > 3]
+          #codigos_a_extraer <- codigos_a_extraer[nchar(codigos_a_extraer) > 3]
         }
-        df <- df[match(codigos_a_extraer,gsub("([0-9]+).*$", "\\1",df$CNAE)),]
+        df <- df[which(gsub("([0-9]+).*$", "\\1",df$CNAE) %in% codigos_a_extraer),]
       }
       
       # 4) Filtro por ubicación
@@ -2594,7 +2647,7 @@ server <- function(input, output, session) {
       if(input$categoria == "Todos"){
         df <- df
       }else{
-        df <- df[df$Categoría == input$categoria,]
+        df <- df[which(df$Categoría %in% input$categoria),]
       }
       
       # 2) Filtro por número de REVIEWS
