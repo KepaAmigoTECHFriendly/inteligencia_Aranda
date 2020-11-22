@@ -223,7 +223,7 @@ ui <- fluidPage(style = "width: 100%; height: 100%;",
                                         selectInput("Municipio_comparaciones", "Seleccione el municipio de comparación",
                                                     municipios$Municipio),
                                         
-                                        dateRangeInput("fechas_listado_borme","Seleccione el intervalo de fechas",start = "2020-01-01", end = "2020-02-01"),
+                                        dateRangeInput("fechas_listado_borme","Seleccione el intervalo de fechas",start = "2020-01-01", end = Sys.Date()),
                                         
                                         checkboxGroupInput("variables_borme_listado", label = "Selección variables",
                                                            choices = list("Constitución" = 1,
