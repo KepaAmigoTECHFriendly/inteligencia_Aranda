@@ -34,6 +34,13 @@ library(shinyalert)
 library(lubridate)
 library(shinybusy)
 
+library(magrittr)
+library(igraph)
+library(xlsx)
+
+library(tm)
+library(SnowballC)
+library(wordcloud)
 
 library(RPostgres)
 library(DBI)
@@ -46,22 +53,34 @@ db_password <- 'postgressysadmin_2019'
 
 con <- dbConnect(RPostgres::Postgres(), dbname = db, host=host_db, port=db_port, user=db_user, password=db_password) 
 
+fecha_ref <- as.Date("2020-11-11")
+
+df_establecimientos <- dbGetQuery(con,paste("SELECT * FROM t_establecimientos WHERE fecha_carga = TO_DATE('",fecha_ref,"', 'YYYY-MM-DD')" ,sep = ""))
+colnames(df_establecimientos) <- c("Establecimiento","Valoración","Reviews","Categoría","Latitud","Longitud","Dirección","Código","Web","Teléfono","Regentada_mujeres","Horarios","Cierre temporal","URL Google Maps","Fecha")
+
+#==================
+# ESTABLECIMIENTOS
+#==================
 
 # ESTABLECIMIENTOS
-df_establecimientos <- read.csv("tabla_total.csv", header = TRUE, sep = ";", stringsAsFactors = FALSE, encoding = "UTF-8", dec = ",")
-colnames(df_establecimientos) <- c("Establecimiento","Valoración","Reviews","Categoría","Latitud","Longitud","Dirección","Código","Web","Teléfono","Regentada_mujeres","Horarios","Cierre temporal","URL Google Maps")
-df_establecimientos <- df_establecimientos[grep("aranda de duero",tolower(df_establecimientos$Código)),]
+#df_establecimientos <- read.csv("tabla_total.csv", header = TRUE, sep = ";", stringsAsFactors = FALSE, encoding = "UTF-8", dec = ",")
+#colnames(df_establecimientos) <- c("Establecimiento","Valoración","Reviews","Categoría","Latitud","Longitud","Dirección","Código","Web","Teléfono","Regentada_mujeres","Horarios","Cierre temporal","URL Google Maps")
+#df_establecimientos <- df_establecimientos[grep("aranda de duero",tolower(df_establecimientos$Código)),]
 
 # TOPICS
-df_topics <- read.csv("topics_total.csv", header = TRUE, sep = ";", stringsAsFactors = FALSE, encoding = "UTF-8", dec = ",")
-df_topics <- df_topics[,1:(ncol(df_topics)-1)]
-colnames(df_topics) <- c("Establecimiento","Valoración","Reviews","Categoría","Latitud","Longitud","Código","URL Google Maps","Topics")
-df_topics <- df_topics[grep("aranda de duero",tolower(df_topics$Código)),]
-df_topics <- df_topics %>% 
-  group_by(Establecimiento) %>%
-  mutate(Topics = paste(Topics, collapse = ", "))
+#df_topics <- read.csv("topics_total.csv", header = TRUE, sep = ";", stringsAsFactors = FALSE, encoding = "UTF-8", dec = ",")
+#df_topics <- df_topics[,1:(ncol(df_topics)-1)]
+#colnames(df_topics) <- c("Establecimiento","Valoración","Reviews","Categoría","Latitud","Longitud","Código","URL Google Maps","Topics")
+#df_topics <- df_topics[grep("aranda de duero",tolower(df_topics$Código)),]
+#df_topics <- df_topics %>% 
+#  group_by(Establecimiento) %>%
+#  mutate(Topics = paste(Topics, collapse = ", "))
 
-df_establecimientos$Topics <- df_topics$Topics[match(df_establecimientos$Establecimiento, df_topics$Establecimiento)]
+#df_establecimientos$Topics <- df_topics$Topics[match(df_establecimientos$Establecimiento, df_topics$Establecimiento)]
+
+#==================
+# CENSO EMPRESAS
+#==================
 
 # CENSO
 df_censo <- read.csv("censo_aranda_duero.csv", header = TRUE, sep = ";", stringsAsFactors = FALSE, encoding = "latin1", dec = ",")
@@ -70,14 +89,46 @@ df_censo <- read.csv("censo_aranda_duero.csv", header = TRUE, sep = ";", strings
 df_censo$Latitud[df_censo$Denominación_social == "Calidad Pascual Sau"] <- 41.677336
 df_censo$Longitud[df_censo$Denominación_social == "Calidad Pascual Sau"] <- -3.700250
 
+
+df_censo_bodegas <- read.csv("censo_bodegas.csv", header = TRUE, stringsAsFactors = FALSE, encoding = "UTF-8", dec = ",")
+df_censo_bodegas <- df_censo_bodegas[,-1]
+
+#========================
+# TABLA INPUT-OUTPUT CYL
+#========================
+archivo <- "TIO_ARANDA_2010.xlsx"
+
+#Limpieza
+datos_raw <- xlsx::read.xlsx(archivo,5,sep=".",stringsAsFactors = FALSE)
+TIO <- datos_raw[,1:(length(datos_raw)-5)]
+TIO[is.na(TIO)] <- 0.00
+
+TIO <- TIO[,-c(97,96,92,91,90,89,85,84)]
+columnas <- TIO$Sector.al.que.se.compra %>% as.character() %>% t()
+colnames(TIO) <- c("Sector",columnas,"CONSUMO hogares","CONSUMO instituciones sin ánimo de lucro", "CONSUMO AAPPs",
+                     "EXPORTACIONES resto España", "EXPORTACIONES UE","EXPORTACIONES mundo")
+Encoding(TIO$Sector) <- "UTF-8"
+Encoding(colnames(TIO)) <- "UTF-8"
+
+for(i in 2:length(TIO))
+{
+  TIO[,i] <- round(TIO[,i]/sum(TIO[,i])*100,2)
+}
+
+TIO[is.na(TIO)] <- 0.00
+TIO <- TIO[order(TIO$`CONSUMO hogares`,decreasing = TRUE),]
+
+
+#====================
 # REFERENCIA CNAES
+#====================
 df_cnae <- read.csv("referencia_CNAEs.csv", header = TRUE, sep = ";")
 df_cnae <- df_cnae[,c(1,3)]
 df_cnae$completo <- paste(df_cnae[,1],df_cnae[,2], sep = " ")
 
 # MUNICIPIOS
 # ------------------------
-municipios <- read.xlsx(xlsxFile = "Municipios.xlsx", sheet = 1, skipEmptyRows = TRUE)
+municipios <- openxlsx::read.xlsx(xlsxFile = "Municipios.xlsx", sheet = 1, skipEmptyRows = TRUE)
 municipios <- municipios[3:nrow(municipios),]
 colnames(municipios) <- c("Código provincia", "Código municipio", "DC","Municipio","Comarca")
 mun <- municipios$Municipio
@@ -152,8 +203,6 @@ ui <- fluidPage(style = "width: 100%; height: 100%;",
                 #)),
                 
                 
-                
-                
                 navbarPage(id ="menu", "Menú",
                            
                            tabPanel("BORME",
@@ -174,7 +223,7 @@ ui <- fluidPage(style = "width: 100%; height: 100%;",
                                         selectInput("Municipio_comparaciones", "Seleccione el municipio de comparación",
                                                     municipios$Municipio),
                                         
-                                        dateRangeInput("fechas_listado_borme","Seleccione el intervalo de fechas",start = "2020-01-01", end = Sys.Date()),
+                                        dateRangeInput("fechas_listado_borme","Seleccione el intervalo de fechas",start = "2020-01-01", end = "2020-02-01"),
                                         
                                         checkboxGroupInput("variables_borme_listado", label = "Selección variables",
                                                            choices = list("Constitución" = 1,
@@ -332,9 +381,9 @@ ui <- fluidPage(style = "width: 100%; height: 100%;",
                                         textInput("palabra_clave", "Búsqueda por palabra clave"),
                                         selectInput("calle", "Filtro por ubicación",
                                                     c("Todas",gsub(",.*","",unique(df_censo$`Domicilio_social`))[order(gsub(",.*","",unique(df_censo$`Domicilio_social`)))])),
-                                        #selectInput("empleados", "Filtro por rango de empleados",
-                                        #            c("Todos",unique(df_censo$Tamaño_empresa_por_empleados)[c(1,2,3,6,4,5)])
-                                        #),
+                                        selectInput("municipio_bodegas", "Filtro por municipio",
+                                                    c("Todos",unique(as.character(df_censo_bodegas$Municipio))[order(unique(as.character(df_censo_bodegas$Municipio)))]),
+                                                    multiple = TRUE, selected = "Todos"),
                                         sliderInput("empleados", "Filtro por rango de empleados",0,max(na.omit(as.numeric(unique(gsub("[ (].*","",df_censo$Empleados))))),c(0,100),step = 1
                                         ),
                                         selectInput("div_cnae", "Filtro por CNAE",
@@ -352,11 +401,24 @@ ui <- fluidPage(style = "width: 100%; height: 100%;",
                                       ),
                                       
                                       mainPanel(
-                                        fluidRow(
-                                          leafletOutput("mapa", height = 500)
-                                        ),
-                                        fluidRow(
-                                          dataTableOutput("tabla")
+                                        tabsetPanel(id = "tabs_censo",
+                                                    tabPanel(id = "censo_aranda","Aranda de Duero",
+                                                             fluidRow(
+                                                               leafletOutput("mapa", height = 500)
+                                                             ),
+                                                             fluidRow(
+                                                               dataTableOutput("tabla")
+                                                             )
+                                                    ),
+                                                    
+                                                    tabPanel(id = "censo_bodegas","Bodegas comarca",
+                                                             fluidRow(
+                                                               leafletOutput("mapa_bodegas", height = 500)
+                                                             ),
+                                                             fluidRow(
+                                                               dataTableOutput("tabla_bodegas")
+                                                             )
+                                                    )
                                         )
                                       )
                                     )
@@ -365,7 +427,7 @@ ui <- fluidPage(style = "width: 100%; height: 100%;",
                            tabPanel("Establecimientos",
                                     sidebarLayout(
                                       sidebarPanel(
-                                        #textInput("palabra_clave", "Búsqueda por palabra clave"),
+                                        dateRangeInput("fechas_establecimientos","Seleccione el intervalo de fechas",start = Sys.Date()-30, end = Sys.Date()),
                                         selectInput("categoria", "Filtro por categoría",
                                                     #c("Todos",substring(unique(df_censo$CNAE),1,2)[order(substring(unique(df_censo$CNAE),1,2))][-1])
                                                     c("Todos",unique(df_establecimientos$Categoría)[order(unique(df_establecimientos$Categoría))]),
@@ -373,7 +435,7 @@ ui <- fluidPage(style = "width: 100%; height: 100%;",
                                         ),
                                         sliderInput("reviews", "Filtro por número de reseñas",min(as.numeric(unique(df_establecimientos$Reviews))),max(as.numeric(unique(df_establecimientos$Reviews))),c(5,100),step = 10
                                         ),
-                                        sliderInput("valoracion", "Filtro por valoración",min(as.numeric(unique(df_establecimientos$Valoración))),max(as.numeric(unique(df_establecimientos$Valoración))),c(0,3),step = 0.5
+                                        sliderInput("valoracion", "Filtro por valoración",min(as.numeric(unique(df_establecimientos$Valoración))),max(as.numeric(unique(df_establecimientos$Valoración))),c(0,5),step = 0.5
                                         ),
                                         #div(style = "color: black; font-size:14px; font-weight: bold;","Filtro redes sociales"),
                                         radioButtons("web", "Filtro por web",
@@ -387,15 +449,56 @@ ui <- fluidPage(style = "width: 100%; height: 100%;",
                                       ),
                                       
                                       mainPanel(
-                                        fluidRow(
-                                          leafletOutput("mapa_establecimientos", height = 500)
-                                        ),
-                                        fluidRow(
-                                          dataTableOutput("tabla_establecimientos")
+                                        tabsetPanel(id = "tabs_establecimientos",
+                                                    
+                                                    tabPanel(id = "Estado_actual",
+                                                             "Estado actual",   
+
+                                                             fluidRow(style='padding-top: 18px;',
+                                                                      leafletOutput("mapa_establecimientos", height = 500),
+                                                             ),
+                                                             fluidRow(style='padding-top: 18px;',
+                                                                      dataTableOutput("tabla_establecimientos"),
+                                                             )
+                                                    ),
+                                                    
+                                                    tabPanel(id = "evolucion_temporal",
+                                                             "Evolución temporal",   
+                                                             fluidRow(style='padding-top: 18px;',
+                                                               plotlyOutput("evolucion_categorias", height = 400),
+                                                             ),
+                                                             fluidRow(style='padding-top: 18px;',
+                                                               plotlyOutput("evolucion_cerrados", height = 400),
+                                                             ),
+                                                             fluidRow(
+                                                               plotOutput("nube_topics", height = 800),
+                                                             )
+                                                    )
                                         )
                                       )
                                     )
-                           ) #Cierre panel establecimientos
+    
+                           ), #Cierre panel establecimientos
+                           
+                           tabPanel("Tabla input-output Castilla y León",
+                                    sidebarLayout(
+                                      sidebarPanel(
+                                        selectInput("sector", "Seleccione un sector", TIO$Sector[order(TIO$Sector)], selected = TIO$Sector[1]),
+                                        sliderInput("grupos", "Grupos",1,10,4,step = 1),
+                                        checkboxInput("inducido", "Inducido", value = FALSE),
+                                        width = 2,
+                                      ),
+                                      
+                                      mainPanel(
+                                        plotOutput("graf_tio",height = 1400)
+                                      )
+                                    )
+                           ), #Cierre tabla I-O
+                           
+                           tags$style(type = 'text/css',
+                                      '.dataTables_scrollBody {transform:rotateX(180deg);}',
+                                      '.dataTables_scrollBody table {transform:rotateX(180deg);}'
+                           )
                            
                 ) # Cierre navbarPage
 ) # Cierre UI
@@ -407,6 +510,8 @@ ui <- fluidPage(style = "width: 100%; height: 100%;",
 server <- function(input, output, session) {
     
     datos <- reactiveValues(borme=NULL,borme_anterior=NULL)
+    datos_estblecimientos_actual <- reactiveValues(establecimientos=NULL)
+    datos_estblecimientos_temporal <- reactiveValues(establecimientos=NULL,flag=0)
 
     ###############################################
     # INICIALIZACIÓN LÓGICA DE VISUALIZACIÓN OBJETOS SHINY
@@ -452,6 +557,28 @@ server <- function(input, output, session) {
         shinyjs::show("variables_borme_listado")
         shinyjs::hide("variables_mapa")
         shinyjs::show("Municipio_principal")
+      }
+    })
+    
+    #Lógica visualización selección variables en establecimientos
+    observeEvent(input$tabs_establecimientos, {
+      if(input$tabs_establecimientos == "Evolución temporal"){
+        shinyjs::show("fechas_establecimientos")
+      }else{
+        shinyjs::hide("fechas_establecimientos")
+      }
+    })
+    
+    #Lógica visualización selección filtros en censo bodegas
+    observeEvent(input$tabs_censo, {
+      if(input$tabs_censo == "Bodegas comarca"){
+        shinyjs::hide("div_cnae")
+        shinyjs::hide("calle")
+        shinyjs::show("municipio_bodegas")
+      }else{
+        shinyjs::show("div_cnae")
+        shinyjs::show("calle")
+        shinyjs::hide("municipio_bodegas")
       }
     })
     
@@ -692,9 +819,94 @@ server <- function(input, output, session) {
         datos$borme_anterior = datos_borme
       }
     })
+    
+    # LLAMADA BBDD ESTABLECIMIENTOS
+    # 1) Llamada para estado actual
+    observeEvent(input$menu, {
+      if(input$menu == "Establecimientos"){
+        fecha_inicial <- input$fechas_establecimientos[1]
+        fecha_final <- input$fechas_establecimientos[2]
+        
+        fechas <- dbGetQuery(con, "SELECT DISTINCT fecha_carga FROM t_establecimientos")
+        fechas <- fechas[,1]
+        fecha <- as.Date(fechas[length(fechas)])
+        
+        progress <- Progress$new(session)
+        progress$set(value = 0.4, message = 'Cargando datos...')
+        
+        df_establecimientos <- dbGetQuery(con,paste("SELECT * FROM t_establecimientos WHERE fecha_carga >= TO_DATE('",fecha_inicial,"', 'YYYY-MM-DD') AND fecha_carga <= TO_DATE('",fecha_final,"', 'YYYY-MM-DD')" ,sep = ""))
+        progress$set(value = 0.6, message = 'Cargando datos...')
+        df_topics <- dbGetQuery(con,paste("SELECT * FROM t_topics WHERE fecha_carga >= TO_DATE('",fecha_inicial,"', 'YYYY-MM-DD') AND fecha_carga <= TO_DATE('",fecha_final,"', 'YYYY-MM-DD')" ,sep = ""))
+        
+        colnames(df_establecimientos) <- c("Establecimiento","Valoración","Reviews","Categoría","Latitud","Longitud","Dirección","Código","Web","Teléfono","Regentada_mujeres","Horarios","Cierre temporal","URL Google Maps","Fecha")
+        #df_establecimientos <- df_establecimientos[grep("aranda de duero",tolower(df_establecimientos$Código)),]
+        df_topics <- df_topics[,c(1,2,3,4,5,6,7,8,9,11)]
+        colnames(df_topics) <- c("Establecimiento","Valoración","Reviews","Categoría","Latitud","Longitud","Código","URL Google Maps","Topics","Fecha")
+        #df_topics <- df_topics[grep("aranda de duero",tolower(df_topics$Código)),]
+        df_topics <- df_topics %>% 
+          group_by(Establecimiento) %>%
+          mutate(Topics = paste(Topics, collapse = ", "))
+        
+        progress$set(value = 0.8, message = 'Cargando datos...')
+        
+        df_establecimientos$Topics <- df_topics$Topics[match(df_establecimientos$Establecimiento, df_topics$Establecimiento)]
+        
+        progress$set(value = 1, message = 'Cargando datos...')
+        progress$close()
+        
+        datos_estblecimientos_actual$establecimientos = df_establecimientos
+        
+      }
+    })
+    
+    # 2) Llamada para estado temporal
+    observeEvent(input$fechas_establecimientos, {
+      if(input$tabs_establecimientos == "Evolución temporal"){
+        fecha_inicial <- input$fechas_establecimientos[1]
+        fecha_final <- input$fechas_establecimientos[2]
+        
+        fechas <- dbGetQuery(con, "SELECT DISTINCT fecha_carga FROM t_establecimientos")
+        fechas <- fechas[,1]
+        fechas <- fechas[fechas >= fecha_inicial & fechas <= fecha_final]
+        long_fechas <- length(fechas)
+        
+        progress <- Progress$new(session)
+        progress$set(value = 0.3, message = 'Cargando datos...')
+        
+        df_establecimientos <- dbGetQuery(con,paste("SELECT * FROM t_establecimientos WHERE fecha_carga >= TO_DATE('",fecha_inicial,"', 'YYYY-MM-DD') AND fecha_carga <= TO_DATE('",fecha_final,"', 'YYYY-MM-DD')" ,sep = ""))
+        df_topics <- dbGetQuery(con,paste("SELECT * FROM t_topics WHERE fecha_carga >= TO_DATE('",fecha_inicial,"', 'YYYY-MM-DD') AND fecha_carga <= TO_DATE('",fecha_final,"', 'YYYY-MM-DD')" ,sep = ""))
+
+        progress$set(value = 0.6, message = 'Cargando datos...')
+        
+        colnames(df_establecimientos) <- c("Establecimiento","Valoración","Reviews","Categoría","Latitud","Longitud","Dirección","Código","Web","Teléfono","Regentada_mujeres","Horarios","Cierre temporal","URL Google Maps","Fecha")
+        #df_establecimientos <- df_establecimientos[grep("aranda de duero",tolower(df_establecimientos$Código)),]
+        df_topics <- df_topics[,c(1,2,3,4,5,6,7,8,9,11)]
+        colnames(df_topics) <- c("Establecimiento","Valoración","Reviews","Categoría","Latitud","Longitud","Código","URL Google Maps","Topics","Fecha")
+        #df_topics <- df_topics[grep("aranda de duero",tolower(df_topics$Código)),]
+        df_topics <- df_topics %>% 
+          group_by(Establecimiento) %>%
+          mutate(Topics = paste(Topics, collapse = ", "))
+        
+        progress$set(value = 0.8, message = 'Cargando datos...')
+        
+        df_establecimientos$Topics <- df_topics$Topics[match(df_establecimientos$Establecimiento, df_topics$Establecimiento)]
+        
+        progress$set(value = 1, message = 'Cargando datos...')
+        progress$close()
+        
+        datos_estblecimientos_temporal$establecimientos = df_establecimientos
+        datos_estblecimientos_temporal$flag=1
+        
+      }
+    })
+    
+    
+    
+    
+    
 
     #==========================================================================
-    # LLAMADAS API THINGSBOARD
+    # DATOS REACTIVOS
     #==========================================================================
 
 
@@ -2380,10 +2592,10 @@ server <- function(input, output, session) {
             df <- datos_filtrados_borme() #Evita la visualización de las variables lat,long,municipio y provincia.
           }
           
-          wb <- createWorkbook()
-          addWorksheet(wb, sheetName = "Datos")
-          writeData(wb, sheet = 1, x = df)
-          saveWorkbook(wb, file)
+          wb <- openxlsx::createWorkbook()
+          openxlsx::addWorksheet(wb, sheetName = "Datos")
+          openxlsx::writeData(wb, sheet = 1, x = df)
+          openxlsx::saveWorkbook(wb, file)
         }
     )
     
@@ -2566,7 +2778,7 @@ server <- function(input, output, session) {
         "Empresa: ", df$`Denominación_social`,"<br/>", 
         "CNAE: ", df$CNAE, "<br/>", 
         "Empleados ", df$Tamaño_empresa_por_empleados, "<br/>",
-        "Facturación: ", df$Tamaño_empresa_por_empleados, "<br/>",
+        "Facturación: ", df$Tamaño_empresa_por_facturación, "<br/>",
         sep="") %>%
         lapply(htmltools::HTML)
       
@@ -2625,6 +2837,175 @@ server <- function(input, output, session) {
     
     
     
+    #=============================================
+    # CENSO BODEGAS COMARCA ARANDA DE DUERO
+    #=============================================
+    
+    datos_filtrado_bodegas <- reactive({
+      
+      df <- df_censo_bodegas
+      
+      # 1) Filtro por intervalo de fechas
+      df <- df[as.Date(as.character(df$`Fecha_constitución`), "%d/%m/%Y") >= as.Date(input$fechas[1]) &
+                 as.Date(as.character(df$`Fecha_constitución`)) <= as.Date(input$fechas[2]) |
+                 df$`Fecha_constitución` == "-",]
+      
+      # Manejo de error: "inexistencia de datos para los filtros seleccionados" de cara al usuario
+      shiny::validate(
+        need(nrow(df) != 0,
+             "Atención!\nNo existen datos disponibles para el valor de los filtros seleccionados.\nModifique el valor de los filtros si lo desea.")
+      )
+      
+      # 2) Filtro por num empleados
+      # Lógica selección empleados == 2- cuando input empleados == 0
+      if(input$empleados[1] == 0){
+        print("entro")
+        inicial_0 <- "-"
+        df_sin_info_empleados <- df[df$Empleados == inicial_0,] 
+        df <- df[as.numeric(gsub("[ (].*","",df$Empleados)) >= input$empleados[1] & as.numeric(gsub("[ (].*","",df$Empleados)) <= input$empleados[2],]
+        df <- na.omit(df)
+        df <- rbind(df,df_sin_info_empleados)
+      }else{
+        df <- df[as.numeric(gsub("[ (].*","",df$Empleados)) >= input$empleados[1] & as.numeric(gsub("[ (].*","",df$Empleados)) <= input$empleados[2],]
+      }
+      
+      # Manejo de error: "inexistencia de datos para los filtros seleccionados" de cara al usuario
+      shiny::validate(
+        need(nrow(df) != 0 & !is.null(input$municipio_bodegas),
+             "Atención!\nNo existen datos disponibles para el valor de los filtros seleccionados.\nModifique el valor de los filtros si lo desea.")
+      )
+      
+      # 4) Filtro por municipio
+      
+      if(input$municipio_bodegas == "Todos"){
+        df <- df
+      }else{
+        df <- df[grep(input$municipio_bodegas,df$Municipio),]
+      }
+      
+      # Manejo de error: "inexistencia de datos para los filtros seleccionados" de cara al usuario
+      shiny::validate(
+        need(nrow(df) != 0,
+             "Atención!\nNo existen datos disponibles para el valor de los filtros seleccionados.\nModifique el valor de los filtros si lo desea.")
+      )
+      
+      df[df == ""] <- "-"
+      
+      # 6) Filtrad por existencia RRSS
+      if(input$RRSS == 1){
+        df <- df[df$RRSS != "-" ,]
+      }else if(input$RRSS == 2){
+        df <- df[df$RRSS == "-",]
+      }else{
+        df <- df
+      }
+      
+      # Manejo de error: "inexistencia de datos para los filtros seleccionados" de cara al usuario
+      shiny::validate(
+        need(nrow(df) != 0,
+             "Atención!\nNo existen datos disponibles para el valor de los filtros seleccionados.\nModifique el valor de los filtros si lo desea.")
+      )
+      
+      # 7) Filtrad por palabra clave
+      if(input$palabra_clave != ""){
+        #Filtrado por búsqueda de palabras clave. Se realiza máscara OR con resultados booleanos.
+        filtrado_palabra_clave <- apply(as.data.frame(mapply(grepl, input$palabra_clave, df, ignore.case = T)),1,any)
+        filtrado_palabra_clave <- apply(as.data.frame(mapply(grepl, input$palabra_clave, df[,c(1:4)], ignore.case = T)),1,any)
+        df <- subset(df, filtrado_palabra_clave)
+      }else{
+        df <- df
+      }
+      
+      # Manejo de error: "inexistencia de datos para los filtros seleccionados" de cara al usuario
+      shiny::validate(
+        need(nrow(df) != 0,
+             "Atención!\nNo existen datos disponibles para el valor de los filtros seleccionados.\nModifique el valor de los filtros si lo desea.")
+      )
+      
+      df <- df[,c(1,2,5,6,7,8,10,9,21,11,12,20,23,19,18,16,15,17,13,14,3,4)]
+      
+      df
+      
+    })
+    
+    datos_filtrado_mapa_bodegas <- reactive({
+      df <- datos_filtrado_bodegas()
+      
+      # Filtrado por selección de registro en la tabla
+      filtrado_tabla <- input$tabla_rows_selected
+      if(length(filtrado_tabla)){
+        df <-  df[filtrado_tabla, , drop = F]
+      }
+      
+      return(df)
+    })
+    
+    
+    # MAPA
+    output$mapa_bodegas <- renderLeaflet({
+      
+      df <- datos_filtrado_mapa_bodegas()
+      
+      df <- df[as.numeric(df$Latitud) > 41,]
+      
+      latitud <- as.numeric(df$Latitud)
+      longitud <- as.numeric(df$Longitud)
+      
+      popup <- paste(
+        "Empresa: ", df$`Denominación_social`,"<br/>", 
+        "CNAE: ", df$CNAE, "<br/>", 
+        "Empleados ", df$Tamaño_empresa_por_empleados, "<br/>",
+        "Facturación: ", df$Tamaño_empresa_por_facturación, "<br/>",
+        sep="") %>%
+        lapply(htmltools::HTML)
+      
+      #leaflet() %>% addProviderTiles(providers$CartoDB.Positron) %>% addMarkers(lng = longitud, lat = latitud, popup = popup)
+      leaflet() %>% addTiles() %>% addMarkers(lng = longitud, lat = latitud, popup = popup)
+    })
+    
+    # TABLA
+    output$tabla_bodegas <- renderDataTable({
+      
+      df <- datos_filtrado_bodegas()
+      
+      # Manejo de error: "inexistencia de datos para los filtros seleccionados" de cara al usuario
+      shiny::validate(
+        need(nrow(df) != 0,
+             "Atención!\nNo existen datos disponibles para el valor de los filtros seleccionados.\nModifique el valor de los filtros si lo desea.")
+      )
+      
+      # Links URL y RRSS
+      df$URL <- paste0("<a href='", df$URL,"' target='_blank'>", df$URL,"</a>")
+      #df$RRSS <- paste0("<a href='", df$RRSS,"' target='_blank'>", df$RRSS,"</a>")
+      
+      pos_urls <- grep("https",df$RRSS)
+      for(i in pos_urls){
+        rrss_separadas <- str_split(df$RRSS[i], ",")[[1]]
+        rrss_separadas <- str_trim(rrss_separadas)
+        rrss_separadas <- unique(rrss_separadas)
+        for(j in 1:length(rrss_separadas)){
+          rrss_separadas[j] <- paste0("<a href='", rrss_separadas[j],"' target='_blank'>", rrss_separadas[j],"</a>")
+        }
+        df$RRSS[i] <- paste(rrss_separadas, collapse = ", ")
+      }
+      
+      # Manejo de error: "inexistencia de datos para los filtros seleccionados" de cara al usuario
+      shiny::validate(
+        need(nrow(df) != 0,
+             "Atención!\nNo existen datos disponibles para el valor de los filtros seleccionados.\nModifique el valor de los filtros si lo desea.")
+      )
+      
+      df <- datatable(df, options = list(pageLength = 5,
+                                         columnDefs = list(list(className = 'dt-center', targets = "_all")),
+                                         scrollX=TRUE, 
+                                         scrollCollapse=TRUE),escape = F)
+      
+    })
+    
+    
+    
+    
+    
     
     # =================================================================
     # =================================================================
@@ -2636,7 +3017,8 @@ server <- function(input, output, session) {
     
     datos_filtrado_establecimientos <- reactive({
       
-      df <- df_establecimientos
+      df <- datos_estblecimientos_actual$establecimientos[datos_estblecimientos_actual$establecimientos$Fecha == max(datos_estblecimientos_actual$establecimientos$Fecha),]
+      df[is.na(df)] <- "-"
 
       shiny::validate(
         need(!is.null(input$categoria),
@@ -2658,9 +3040,9 @@ server <- function(input, output, session) {
       
       # 4) Filtro web
       if(as.numeric(input$web) == 1){
-        df <- df[df$Web != 0 ,]
+        df <- df[df$Web != "-" ,]
       }else if(as.numeric(input$web) == 2){
-        df <- df[df$Web == 0,]
+        df <- df[df$Web == "-",]
       }else{
         df <- df
       }
@@ -2686,6 +3068,140 @@ server <- function(input, output, session) {
       }
       
       return(df)
+    })
+    
+    # Preparacion datos para evolucion temporal
+    datos_filtados_evolucion_temporal <- reactive({
+      if(datos_estblecimientos_temporal$flag == 1){
+        df <- datos_estblecimientos_temporal$establecimientos
+      }else{
+        df <- datos_estblecimientos_actual$establecimientos
+      }
+      
+      df[is.na(df)] <- "-"
+      
+      shiny::validate(
+        need(!is.null(input$categoria),
+             "Atención!\nNo se ha seleccionado ninguna categoría.\nSeleccione una categoría por favor.")
+      )
+      
+      # 1) Filtro por categoria
+      if(input$categoria == "Todos"){
+        df <- df
+      }else{
+        df <- df[which(df$Categoría %in% input$categoria),]
+      }
+      
+      # 2) Filtro por número de REVIEWS
+      df <- df[df$Reviews >= input$reviews[1] & df$Reviews <= input$reviews[2],]
+      
+      # 3) Filtro por valoración
+      df <- df[df$Valoración >= input$valoracion[1] & df$Valoración <= input$valoracion[2],]
+      
+      # 4) Filtro web
+      if(as.numeric(input$web) == 1){
+        df <- df[df$Web != "-" ,]
+      }else if(as.numeric(input$web) == 2){
+        df <- df[df$Web == "-",]
+      }else{
+        df <- df
+      }
+      
+      # 5) Filtro estado
+      if(as.numeric(input$cerradas) == 1){
+        df <- df[df$`Cierre temporal` == "-" ,]
+      }else if(as.numeric(input$cerradas) == 2){
+        df <- df[df$`Cierre temporal` != "-",]
+      }else{
+        df <- df
+      }
+      
+    })
+    
+    
+    #==============================
+    # GRAFICOS EVOLUCION TEMPORAL
+    
+    # 1) Recuento por cartegoria
+    output$evolucion_categorias <- renderPlotly({
+      df <- datos_filtados_evolucion_temporal()
+      
+      df <- df %>% 
+        dplyr::group_by(Categoría,Fecha) %>%
+        dplyr::summarise(Recuento = n())
+      
+      p <- df
+      p <- p %>% plot_ly(x = ~Fecha, y = ~Recuento, fill= ~Categoría, color = ~Categoría)
+      p <- p %>% add_trace(type = 'scatter', mode = 'lines+markers')
+      p <- p %>% layout(
+        title = paste("<b>Evolución temporal por categoría</b>",sep = ""),
+        yaxis = list(range = c(0,(5+max(df$Recuento))))
+      )
+      
+      p
+        
+        
+    })
+    
+    
+    # 2) Recuento cerrados temporalmente
+    output$evolucion_cerrados <- renderPlotly({
+      df <- datos_filtados_evolucion_temporal()
+      
+      df <- df %>% 
+        dplyr::group_by(`Cierre temporal`,Fecha) %>%
+        dplyr::summarise(Recuento = n()) %>%
+        dplyr::ungroup() %>%
+        dplyr::mutate(Representación=Recuento/sum(Recuento)*100)
+
+      df <- df[df$`Cierre temporal` != "-",]
+      
+      shiny::validate(
+        need(nrow(df) != 0,
+             "Atención!\nNo existen datos disponibles para el valor de los filtros seleccionados.\nModifique el valor de los filtros si lo desea.")
+      )
+      
+      df$Representación <- round(df$Representación,2)
+      
+      p <- df
+      p <- p %>% plot_ly(x = ~Fecha, y = ~Recuento)
+      p <- p %>% add_trace(type = 'scatter', mode = 'lines+markers',text = ~paste('Representación:', Representación))
+      p <- p %>% layout(
+        title = paste("<b>Evolución temporal del estado de los establecimientos</b>",sep = ""),
+        yaxis = list(range = c(0,(5+max(df$Recuento))))
+      )
+      
+      p
+      
+    })
+    
+    # NUBE PALABRAS TOPICS
+    output$nube_topics <- renderPlot({
+      
+      df <- datos_filtados_evolucion_temporal()
+      
+      topics <- df$Topics[!is.na(df$Topics)]
+      topics <- str_trim(unlist(strsplit(topics, ",")))
+      topics <- Corpus(VectorSource(topics))
+      #topics_recuento <- table(topics)
+      
+      dtm <- TermDocumentMatrix(topics)
+      m <- as.matrix(dtm)
+      v <- sort(rowSums(m),decreasing=TRUE)
+      d <- data.frame(word = names(v),freq=v)
+      
+      # Manejo de error: "inexistencia de datos para los filtros seleccionados" de cara al usuario
+      shiny::validate(
+        need(nrow(d) != 0,
+             "Atención!\nNo existen datos disponibles para el valor de los filtros seleccionados.\nModifique el valor de los filtros si lo desea.")
+      )
+      
+      w <- wordcloud(words = d$word, freq = d$freq, min.freq = 1,
+                max.words=100, scale=c(8,0.5),
+                colors=brewer.pal(8, "Dark2"))
+      
+      w
+      
     })
     
     
@@ -2722,8 +3238,7 @@ server <- function(input, output, session) {
              "Atención!\nNo existen datos disponibles para el valor de los filtros seleccionados.\nModifique el valor de los filtros si lo desea.")
       )
       
-      df$Web <- paste("https://www.",df$Web, sep= "")
-      
+      df$Web[df$Web != "-"] <- paste("https://www.",df$Web, sep= "")
       
       # Links URL y RRSS
       df$Web <- paste0("<a href='", df$Web,"' target='_blank'>", df$Web,"</a>")
@@ -2754,6 +3269,131 @@ server <- function(input, output, session) {
         
         write.csv(df, file, eol="\n", sep = ",")
       })
+    
+    
+    #==============================================================
+    # TABLA IO CYL
+    #==============================================================
+    
+    filtros_tio <- reactive({
+      df <- TIO
+      
+      sectores_afectados <- df$Sector[df$Sector == input$sector]
+      flujos_a_sectores  <- df$`CONSUMO hogares`[grep(input$sector,df$Sector)]
+
+      relaciones_totales <- data.frame(origen="consumo_HOGAR",destino=sectores_afectados,flujo=flujos_a_sectores)
+      
+      # Crear relaciones en un data.frame
+      
+      for(j in 1:length(sectores_afectados))
+      {
+        sector_1 <- grep(sectores_afectados[j],colnames(df))
+        df <- df[order(df[,sector_1],decreasing = TRUE),]
+        sectores_afectados_1 <- df$Sector[1:input$grupos]
+        flujos_a_sectores_1  <- df[1:input$grupos,sector_1]
+        relaciones_1 <- data.frame(origen=sectores_afectados[j],destino=sectores_afectados_1,flujo=flujos_a_sectores_1)
+        relaciones_totales <- rbind(relaciones_totales,relaciones_1)
+        
+        for(k in 1:length(sectores_afectados_1))
+        {
+          sector_2 <- grep(sectores_afectados_1[k],colnames(df))
+          df <- df[order(df[,sector_2],decreasing = TRUE),]
+          sectores_afectados_2 <- df$Sector[1:input$grupos]
+          flujos_a_sectores_2  <- df[1:input$grupos,sector_2]
+          relaciones_2 <- data.frame(origen=sectores_afectados_1[k],destino=sectores_afectados_2,flujo=flujos_a_sectores_2)
+          relaciones_totales <- rbind(relaciones_totales,relaciones_2)
+        }
+        
+        if(input$inducido==TRUE)
+        {
+          for(m in 1:length(sectores_afectados_2))
+          {
+            sector_3 <- grep(sectores_afectados_2[m],colnames(df))
+            df <- df[order(df[,sector_3],decreasing = TRUE),]
+            sectores_afectados_3 <- df$Sector[1:input$grupos]
+            flujos_a_sectores_3  <- df[1:input$grupos,sector_3]
+            relaciones_3 <- data.frame(origen=sectores_afectados_2[m],destino=sectores_afectados_3,flujo=flujos_a_sectores_3)
+            relaciones_totales <- rbind(relaciones_totales,relaciones_3)
+          }
+        }
+      }
+      
+      relaciones_totales <- relaciones_totales[relaciones_totales$flujo>=1,]
+      relaciones_totales <- relaciones_totales %>% unique()
+      
+    })
+    
+    output$graf_tio <- renderPlot({
+      
+      df <- filtros_tio()
+      
+      vertices <- c(unique(as.character(df$origen)),unique(as.character(df$destino))) %>% unique()
+      
+      grafo <- graph_from_data_frame(df,directed=TRUE,vertices)
+      
+      # Page rank
+      
+      ranking <- page_rank(grafo, directed=TRUE, weights = E(grafo)$ventas,damping=0.85)
+      ranking <- ranking$vector[order(as.numeric(ranking$vector),decreasing=TRUE)] %>% head(10)
+      ranking <- ranking %>% as.data.frame()
+      ranking$sector <- rownames(ranking)
+      ranking
+      
+      # Centralidad Eigen
+      
+      centralidad_eigen <- centr_eigen(grafo,directed=TRUE)
+      centralidad_eigen <- centralidad_eigen$vector %>% as.data.frame()
+      centralidad_eigen$sector <- vertices
+      centralidad_eigen <- centralidad_eigen[order(centralidad_eigen$.,decreasing = TRUE),]
+      centralidad_eigen <- head(centralidad_eigen,10)
+      centralidad_eigen
+      
+      #INTERMEDIACION
+      #La intermediación («betweenness centrality») es una medida que cuantifica 
+      #la frecuencia o el número de veces que un nodo actúa como un puente a lo largo 
+      #del camino más corto entre otros dos nodos.
+      #Los nodos que poseen una posición de intermediarios de alguna manera son 
+      #también controladores o reguladores del flujo y suelen jugar un rol crítico 
+      #en la estructura de la red, cuando hay grandes flujos que son transportados 
+      #por nodos pertenecientes a grupos compactos
+      
+      betweenness_grafo <- betweenness(grafo,weights = E(grafo)$flujo)
+      betweenness_grafo <- betweenness_grafo[order(-betweenness_grafo)]
+      betweenness_grafo <- head(betweenness_grafo,15)
+      betweenness_grafo
+      
+      #clusters
+      
+      #sgc <- spinglass.community(grafo, weights = E(grafo)$flujo, spins=25)
+      #membership(sgc)
+      #clusters <- data.frame(sgc$membership,vertices)
+      
+      sgc_2 <- cluster_spinglass(grafo, weights = E(grafo)$flujo,spins=25)
+      clusters_2 <- data.frame(sgc_2$membership,vertices)
+      
+      #plot(grafo,vertex.size=0.8,edge.width=0.1,edge.arrow.size=0.02,label.cex=12)
+      
+      l <- layout_with_kk(grafo)
+      
+      g <- plot(sgc_2,grafo,
+           layout=l,
+           vertex.size=20,
+           vertex.label.family = "Verdana",
+           vertex.label.cex = 1,
+           vertex.label.color = "Black",
+           edge.arrow.size=1,
+           edge.label=paste(E(grafo)$flujo,"%"),
+           #edge.width=E(grafo)$flujo/10,
+           edge.label.family = "Verdana",
+           edge.label.cex = 1,
+           edge.label.color = "Black",
+           edge.curved=curve_multiple(grafo))
+      
+      title(paste("Nodo atractor:",ranking[1,2]),cex.main=1,col.main="Black")
+      
+      g
+      
+    })
 }
 
 # Run the application
