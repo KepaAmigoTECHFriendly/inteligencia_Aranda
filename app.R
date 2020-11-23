@@ -2479,7 +2479,7 @@ server <- function(input, output, session) {
       p <- p %>% plot_ly(x = ~Mes, y = df$`Evolución reducción`, fill= ~`Forma Jurídica`, color = ~`Forma Jurídica`)
       p <- p %>% add_trace(type = 'scatter', mode = 'lines+markers')
       p <- p %>% layout(
-        title = paste("<b>Evolució mensual reducció de capital ",input$Municipio_principal, "</b>",sep = ""),
+        title = paste("<b>Evolución mensual reducción de capital ",input$Municipio_principal, "</b>",sep = ""),
         yaxis = list(
           title = 'Evolució porcentual (%)'
         )
