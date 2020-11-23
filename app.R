@@ -203,7 +203,7 @@ ui <- fluidPage(style = "width: 100%; height: 100%;",
                 #)),
                 
                 
-                navbarPage(id ="menu", "Menú",
+                navbarPage(id ="menu",NULL,
                            
                            tabPanel("BORME",
                                     sidebarLayout(
@@ -257,22 +257,27 @@ ui <- fluidPage(style = "width: 100%; height: 100%;",
                                       mainPanel(
                                         tabsetPanel(id = "tabs_borme",
                                                     
-                                                    tabPanel(id = "tab_listado",
-                                                             "Listado informativo",   #Con span genero un popup de ayuda.
+                                                    tabPanel(id = "tab_mapa",
+                                                             "Mapa",
+                                                             # Panel MAPA
+                                                             fluidRow(style='padding-bottom: 25px;',
+                                                                      uiOutput("texto_borme_mapa"),
+                                                                      leafletOutput("mapa_borme"),
+                                                             ),
                                                              
                                                              # Panel DATAFRAME
-                                                             fluidRow(style='padding-top: 18px;',
-                                                                      uiOutput("texto_tabla_borme_listado"),
-                                                                      dataTableOutput("tabla_borme_listado"),
+                                                             fluidRow(
+                                                               uiOutput("texto_tabla_borme_mapa"),
+                                                               dataTableOutput("tabla_borme_mapa"),
                                                              ),
                                                              fluidRow(style='padding-top: 18px;',
-                                                                      uiOutput("texto_tabla_borme_censo"),
-                                                                      dataTableOutput("tabla_borme_censo"),
+                                                                      uiOutput("texto_tabla_borme_censo_mapa"),
+                                                                      dataTableOutput("tabla_borme_censo_mapa"),
                                                              )
                                                     ),
                                                     
                                                     tabPanel(id = "tab_estadistica_basica",
-                                                             "Estadística básica 1",   #Con span genero un popup de ayuda.
+                                                             "Descripción territorio",   #Con span genero un popup de ayuda.
                                                              
                                                              # Panel DATAFRAME
                                                              fluidRow(style='padding-top: 18px;',
@@ -300,7 +305,7 @@ ui <- fluidPage(style = "width: 100%; height: 100%;",
                                                     ),
                                                     
                                                     tabPanel(id = "tab_estadistica_basica_2", 
-                                                             "Estadística básica 2",   #Con span genero un popup de ayuda.
+                                                             "Descripción mensual",   #Con span genero un popup de ayuda.
                                                              
                                                              # Panel DATAFRAME
                                                              fluidRow(style='padding-top: 18px;',
@@ -342,23 +347,17 @@ ui <- fluidPage(style = "width: 100%; height: 100%;",
                                                              ),
                                                              
                                                     ),
-                                                    
-                                                    tabPanel(id = "tab_mapa",
-                                                             "Mapa",
-                                                             # Panel MAPA
-                                                             fluidRow(style='padding-bottom: 25px;',
-                                                                      uiOutput("texto_borme_mapa"),
-                                                                      leafletOutput("mapa_borme"),
-                                                             ),
+                                                    tabPanel(id = "tab_listado",
+                                                             "Listado informativo",   #Con span genero un popup de ayuda.
                                                              
                                                              # Panel DATAFRAME
-                                                             fluidRow(
-                                                               uiOutput("texto_tabla_borme_mapa"),
-                                                               dataTableOutput("tabla_borme_mapa"),
+                                                             fluidRow(style='padding-top: 18px;',
+                                                                      uiOutput("texto_tabla_borme_listado"),
+                                                                      dataTableOutput("tabla_borme_listado"),
                                                              ),
                                                              fluidRow(style='padding-top: 18px;',
-                                                                      uiOutput("texto_tabla_borme_censo_mapa"),
-                                                                      dataTableOutput("tabla_borme_censo_mapa"),
+                                                                      uiOutput("texto_tabla_borme_censo"),
+                                                                      dataTableOutput("tabla_borme_censo"),
                                                              )
                                                     )
                                         )
@@ -480,7 +479,7 @@ ui <- fluidPage(style = "width: 100%; height: 100%;",
     
                            ), #Cierre panel establecimientos
                            
-                           tabPanel("Tabla input-output Castilla y León",
+                           tabPanel("Simulador económico Local",
                                     sidebarLayout(
                                       sidebarPanel(
                                         selectInput("sector", "Seleccione un sector", TIO$Sector[order(TIO$Sector)], selected = TIO$Sector[1]),
@@ -509,7 +508,7 @@ ui <- fluidPage(style = "width: 100%; height: 100%;",
 
 server <- function(input, output, session) {
     
-    datos <- reactiveValues(borme=NULL,borme_anterior=NULL)
+    datos <- reactiveValues(borme=NULL,borme_anterior=NULL,fechas_actual=c(0,0),fechas_anterior=c(0,0))
     datos_estblecimientos_actual <- reactiveValues(establecimientos=NULL)
     datos_estblecimientos_temporal <- reactiveValues(establecimientos=NULL,flag=0)
 
@@ -545,7 +544,7 @@ server <- function(input, output, session) {
         shinyjs::show("variables_borme_listado")
         shinyjs::hide("variables_mapa")
         shinyjs::show("Municipio_principal")
-      }else if(input$tabs_borme == "Estadística básica 2"){
+      }else if(input$tabs_borme == "Descripción mensual"){
         shinyjs::hide("Municipio_principal_mapa")
         shinyjs::show("comparaciones")
         shinyjs::show("variables_borme_listado")
@@ -615,78 +614,9 @@ server <- function(input, output, session) {
       fecha_inicial <- input$fechas_listado_borme[1]
       fecha_final <- input$fechas_listado_borme[2]
       
-      if(fecha_final - fecha_inicial < 32){
-        progress <- Progress$new(session)
-        progress$set(value = 0.5, message = 'Cargando datos...')
-        #datos$borme = llamada_api(as.character(input$fechas_listado_borme[1]), as.character(input$fechas_listado_borme[2]))
-
-        fecha_1 <- format(as.Date(fecha_inicial),"%d/%m/%Y")
-        fecha_2 <- format(as.Date(fecha_final),"%d/%m/%Y")
+      if(fecha_inicial < datos$fechas_actual[1] | fecha_final > datos$fechas_actual[2]){
         
-        datos$borme <- dbGetQuery(con,paste("SELECT * FROM borme WHERE TO_DATE(fecha, 'DD/MM/YYYY') >= TO_DATE('",fecha_1,"', 'DD/MM/YYYY') AND TO_DATE(fecha, 'DD/MM/YYYY') <= TO_DATE('",fecha_2,"', 'DD/MM/YYYY')" ,sep = ""))
-        
-        progress$close()
-      }else{
-        num_meses <- floor(12*as.double(difftime(fecha_final,fecha_inicial))/365)
-        num_meses <- ifelse(num_meses == 0,1,num_meses)
-        
-        #datos$borme = llamada_api(as.character(input$fechas_listado_borme[1]), as.character(input$fechas_listado_borme[2]))
-        fecha_ini_consulta <- fecha_inicial
-        fecha_fin_consulta <- fecha_final
-        progress <- Progress$new(session)
-        long <- 1:num_meses
-        avance_barra <- rescale(long,c(0.2,1.0))
-        df <- data.frame(NULL)
-        for(i in long){
-          progress$set(value = avance_barra[i], message = 'Cargando datos...')
-          if(i == 1){
-            month(fecha_ini_consulta) <- month(fecha_fin_consulta)-1
-          }else if(i == num_meses){
-            fecha_fin_consulta <- fecha_ini_consulta-1
-            fecha_ini_consulta <- fecha_inicial
-            
-          }else{
-            fecha_fin_consulta <- fecha_ini_consulta-1
-            month(fecha_ini_consulta) <- month(fecha_ini_consulta)-1
-          }
-
-          #df_mes <- llamada_api(as.character(fecha_ini_consulta), as.character(fecha_fin_consulta))
-          fecha_inicial_2 <- as.Date(fecha_ini_consulta)
-          fecha_final_2 <- as.Date(fecha_fin_consulta)
-          fecha_1 <- format(as.Date(fecha_inicial_2),"%d/%m/%Y")
-          fecha_2 <- format(as.Date(fecha_final_2),"%d/%m/%Y")
-          
-          df_mes <- dbGetQuery(con,paste("SELECT * FROM borme WHERE TO_DATE(fecha, 'DD/MM/YYYY') >= TO_DATE('",fecha_1,"', 'DD/MM/YYYY') AND TO_DATE(fecha, 'DD/MM/YYYY') <= TO_DATE('",fecha_2,"', 'DD/MM/YYYY')" ,sep = ""))
-          
-          df <- rbind(df,df_mes)
-        }
-        datos$borme = df
-        progress$close()
-      }
-      
-      #remove_modal_spinner() # remove it when done
-      #hide_spinner() # hide the spinner
-      print("LLEGO 1")
-    })
-    
-    # CARGA DE DATOS AÑO ANTERIOR PARA GRÁFICA LINEAL
-    observeEvent(input$tabs_borme, {
-      
-      if(input$tabs_borme == "Estadística básica 2"){
-        # Consulta a BBDD
-        fecha_inicial <- input$fechas_listado_borme[1]
-        fecha_final <- input$fechas_listado_borme[2]
-        
-        años <- year(seq(fecha_inicial,fecha_final,"years"))
-        
-        # Si hay más de un año no se prepara la gráfica
-        if(length(años) > 2){
-          return(0)
-        }
-        
-        # Restamos un año al periodo de consultas actual
-        year(fecha_inicial) <- year(fecha_inicial) - 1
-        year(fecha_final) <- year(fecha_final) - 1
+        datos$fechas_actual <- c(fecha_inicial,fecha_final)
         
         if(fecha_final - fecha_inicial < 32){
           progress <- Progress$new(session)
@@ -696,7 +626,7 @@ server <- function(input, output, session) {
           fecha_1 <- format(as.Date(fecha_inicial),"%d/%m/%Y")
           fecha_2 <- format(as.Date(fecha_final),"%d/%m/%Y")
           
-          datos$borme <- dbGetQuery(con,paste("SELECT * FROM borme WHERE TO_DATE(fecha, 'DD/MM/YYYY') >= TO_DATE('",fecha_1,"', 'DD/MM/YYYY') AND TO_DATE(fecha, 'DD/MM/YYYY') <= TO_DATE('",fecha_2,"', 'DD/MM/YYYY')" ,sep = ""))
+          df <- dbGetQuery(con,paste("SELECT * FROM borme WHERE TO_DATE(fecha, 'DD/MM/YYYY') >= TO_DATE('",fecha_1,"', 'DD/MM/YYYY') AND TO_DATE(fecha, 'DD/MM/YYYY') <= TO_DATE('",fecha_2,"', 'DD/MM/YYYY')" ,sep = ""))
           
           progress$close()
         }else{
@@ -730,16 +660,13 @@ server <- function(input, output, session) {
             fecha_2 <- format(as.Date(fecha_final_2),"%d/%m/%Y")
             
             df_mes <- dbGetQuery(con,paste("SELECT * FROM borme WHERE TO_DATE(fecha, 'DD/MM/YYYY') >= TO_DATE('",fecha_1,"', 'DD/MM/YYYY') AND TO_DATE(fecha, 'DD/MM/YYYY') <= TO_DATE('",fecha_2,"', 'DD/MM/YYYY')" ,sep = ""))
-            
             df <- rbind(df,df_mes)
           }
           progress$close()
         }
-        
-        #=========================
-        # 1) DATOS ESTRUCTURADOS
-        #=========================
+        # Estructuración de datos
         datos_borme <- df
+      
         nombres <- c("Denominación social","Fusión sociedades absorbidas", "Modificaciones estatutarias",
                      "Cambio denominación social", "Cambio domicilio social", "Cambio objeto social",
                      "Ceses liquiSoli", "Ceses apoderado", "Ceses Adm. Único",
@@ -766,7 +693,6 @@ server <- function(input, output, session) {
                      "Distancia respecto municipio en km","Dentro", "Provincia","Fecha"
         )
         
-        
         if(nrow(datos_borme) == 0){
           return(0)
         }
@@ -777,7 +703,7 @@ server <- function(input, output, session) {
         progress <- Progress$new(session)
         long <- 1:2
         avance_barra <- rescale(long,c(0.5,1.0))
-        progress$set(value = 0.5, message = 'Procesando datos...')
+        progress$set(value = 0.5, message = 'Procesando datos. Puede tardar varios segundos.')
         
         # ASIGNACIÓN DE MUNICIPIO ARANDA DE DUERO
         for(i in 1:nrow(datos_borme)){
@@ -785,7 +711,7 @@ server <- function(input, output, session) {
                                              "Aranda de Duero",
                                              datos_borme$Municipio[i])
         }
-        progress$set(value = 1, message = 'Procesando datos...')
+        progress$set(value = 1, message = 'Procesando datos. Puede tardar varios segundos.')
         progress$close()
         
         #Generación forma jurídica
@@ -816,7 +742,164 @@ server <- function(input, output, session) {
         datos_borme$`Constitución capital`[!grepl("[a-d]",datos_borme$`Constitución capital`) & datos_borme$`Constitución capital` != "-"] <- as.numeric(gsub("[.]","",datos_borme$`Constitución capital`[!grepl("[a-d]",datos_borme$`Constitución capital`) & datos_borme$`Constitución capital` != "-"]))
         datos_borme$`Constitución capital`[!grepl("[a-d]",datos_borme$`Constitución capital`) & datos_borme$`Constitución capital` != "-"] <- format(as.numeric(datos_borme$`Constitución capital`[!grepl("[a-d]",datos_borme$`Constitución capital`) & datos_borme$`Constitución capital` != "-"]), big.mark = ".")
         
-        datos$borme_anterior = datos_borme
+        datos$borme = datos_borme
+      }
+      
+    })
+    
+    # CARGA DE DATOS AÑO ANTERIOR PARA GRÁFICA LINEAL
+    observeEvent(input$tabs_borme, {
+      
+      if(input$tabs_borme == "Descripción mensual"){
+        # Consulta a BBDD
+        fecha_inicial <- input$fechas_listado_borme[1]
+        fecha_final <- input$fechas_listado_borme[2]
+        
+        if(fecha_inicial < datos$fechas_anterior[1] | fecha_final > datos$fechas_anterior[2]){
+          
+          datos$fechas_anterior <- c(fecha_inicial,fecha_final)
+        
+          años <- year(seq(fecha_inicial,fecha_final,"years"))
+          
+          # Si hay más de un año no se prepara la gráfica
+          if(length(años) > 2){
+            return(0)
+          }
+          
+          # Restamos un año al periodo de consultas actual
+          year(fecha_inicial) <- year(fecha_inicial) - 1
+          year(fecha_final) <- year(fecha_final) - 1
+          
+          if(fecha_final - fecha_inicial < 32){
+            progress <- Progress$new(session)
+            progress$set(value = 0.5, message = 'Cargando datos...')
+            #datos$borme = llamada_api(as.character(input$fechas_listado_borme[1]), as.character(input$fechas_listado_borme[2]))
+            
+            fecha_1 <- format(as.Date(fecha_inicial),"%d/%m/%Y")
+            fecha_2 <- format(as.Date(fecha_final),"%d/%m/%Y")
+            
+            datos$borme <- dbGetQuery(con,paste("SELECT * FROM borme WHERE TO_DATE(fecha, 'DD/MM/YYYY') >= TO_DATE('",fecha_1,"', 'DD/MM/YYYY') AND TO_DATE(fecha, 'DD/MM/YYYY') <= TO_DATE('",fecha_2,"', 'DD/MM/YYYY')" ,sep = ""))
+            
+            progress$close()
+          }else{
+            num_meses <- floor(12*as.double(difftime(fecha_final,fecha_inicial))/365)
+            num_meses <- ifelse(num_meses == 0,1,num_meses)
+            
+            #datos$borme = llamada_api(as.character(input$fechas_listado_borme[1]), as.character(input$fechas_listado_borme[2]))
+            fecha_ini_consulta <- fecha_inicial
+            fecha_fin_consulta <- fecha_final
+            progress <- Progress$new(session)
+            long <- 1:num_meses
+            avance_barra <- rescale(long,c(0.2,1.0))
+            df <- data.frame(NULL)
+            for(i in long){
+              progress$set(value = avance_barra[i], message = 'Cargando datos...')
+              if(i == 1){
+                month(fecha_ini_consulta) <- month(fecha_fin_consulta)-1
+              }else if(i == num_meses){
+                fecha_fin_consulta <- fecha_ini_consulta-1
+                fecha_ini_consulta <- fecha_inicial
+                
+              }else{
+                fecha_fin_consulta <- fecha_ini_consulta-1
+                month(fecha_ini_consulta) <- month(fecha_ini_consulta)-1
+              }
+              
+              #df_mes <- llamada_api(as.character(fecha_ini_consulta), as.character(fecha_fin_consulta))
+              fecha_inicial_2 <- as.Date(fecha_ini_consulta)
+              fecha_final_2 <- as.Date(fecha_fin_consulta)
+              fecha_1 <- format(as.Date(fecha_inicial_2),"%d/%m/%Y")
+              fecha_2 <- format(as.Date(fecha_final_2),"%d/%m/%Y")
+              
+              df_mes <- dbGetQuery(con,paste("SELECT * FROM borme WHERE TO_DATE(fecha, 'DD/MM/YYYY') >= TO_DATE('",fecha_1,"', 'DD/MM/YYYY') AND TO_DATE(fecha, 'DD/MM/YYYY') <= TO_DATE('",fecha_2,"', 'DD/MM/YYYY')" ,sep = ""))
+              
+              df <- rbind(df,df_mes)
+            }
+            progress$close()
+          }
+          
+          #=========================
+          # 1) DATOS ESTRUCTURADOS
+          #=========================
+          datos_borme <- df
+          nombres <- c("Denominación social","Fusión sociedades absorbidas", "Modificaciones estatutarias",
+                       "Cambio denominación social", "Cambio domicilio social", "Cambio objeto social",
+                       "Ceses liquiSoli", "Ceses apoderado", "Ceses Adm. Único",
+                       "Ceses liquidador", "Ceses liquidador mancomunado", "Ceses adminSolid",
+                       "Ceses Adm. Mancomunado", "Ceses Soc. Prof", "Ceses depositorio",
+                       "Ceses entid. Deposit.", "Ceses entid. Promo.", "Ceses consejero",
+                       "Ceses vicepresidente", "Ceses presidente", "Ceses secretario",
+                       "Nombramiento liquiSoli", "Nombramiento apoderado", "Nombramiento Adm. Único",
+                       "Nombramiento liquidador", "Nombramiento liquidador mancomunado", "Nombramiento Adm. Solid",
+                       "Nombramiento Soc. Prof", "Nombramiento auditor","Nombramiento Adm. Mancomunado",
+                       "Nombramiento Entid. Deposit.", "Nombramiento Entid. Promo.", "Nombramiento consejero",
+                       "Nombramiento vicepresidente","Nombramiento presidente", "Nombramiento secretario",
+                       "Ampliación capital suscrito", "Ampliación capital resultante suscrito", "Ampliación capital desembolsado",
+                       "Ampliación capital resultante desembolsado", "Ampliación capital", "Declaración unipersonalidad socio único",
+                       "Reducción capital importe reducción","Reducción capital resultante suscrito", "Reelecciones Adm. Único",
+                       "Reelecciones auditor", "Reelecciones auditor suplente", "Revocaciones auditor",
+                       "Revocaciones apoderado", "Revocaciones apoderado mancomunado", "Revocaciones apoderadoSol",
+                       "Situación Concursal Procedimiento", "Situación Concursal Resolución firme","Situación Concursal Fecha Resolución",
+                       "Situación Concursal Proceso", "Situación Concursal Juzgado", "Situación Concursal Juez",
+                       "Situación Concursal Resoluciones", "Escisión", "Transformación", "Disolución", "Extinción",
+                       "Constitución comienzo operaciones", "Constitución objeto social","Constitución domicilio social",
+                       "Constitución capital", "Otros conceptos","Datos registrales",
+                       "Coordenadas empresa","Latitud", "Longitud","Municipio",
+                       "Distancia respecto municipio en km","Dentro", "Provincia","Fecha"
+          )
+          
+          
+          if(nrow(datos_borme) == 0){
+            return(0)
+          }
+          
+          colnames(datos_borme) <- nombres
+          datos_borme <- datos_borme[,c(1,2,5,6,24,34,35,59,60,61,62,63,64,65,66,41,37,39,40,43,44,58,70,71,72,76)]
+          
+          progress <- Progress$new(session)
+          long <- 1:2
+          avance_barra <- rescale(long,c(0.5,1.0))
+          progress$set(value = 0.5, message = 'Procesando datos.\nPuede tardar varios segundos.')
+          
+          # ASIGNACIÓN DE MUNICIPIO ARANDA DE DUERO
+          for(i in 1:nrow(datos_borme)){
+            datos_borme$Municipio[i] <- ifelse(datos_borme$Municipio[i] == "-" & any(grepl(tolower(datos_borme$`Denominación social`)[i], tolower(gsub("[.]","",df_censo$Denominación_social)))), 
+                                               "Aranda de Duero",
+                                               datos_borme$Municipio[i])
+          }
+          progress$set(value = 1, message = 'Procesando datos. Puede tardar varios segundos.')
+          progress$close()
+          
+          #Generación forma jurídica
+          forma_juridica <- c()
+          for(i in 1:length(datos_borme$`Denominación social`)){
+            pos_ultimo_espacio <- gregexpr(" ",datos_borme$`Denominación social`[i])[[1]][length(gregexpr(" ",datos_borme$`Denominación social`[i])[[1]])]
+            forma_juridica1 <- str_trim(substring(datos_borme$`Denominación social`[i],pos_ultimo_espacio,nchar(datos_borme$`Denominación social`[i])))
+            if(nchar(forma_juridica1) > 3){
+              nuevo_nombre <- gsub(" EN LIQUIDACION","",datos_borme$`Denominación social`[i])
+              pos_ultimo_espacio <- gregexpr(" ",nuevo_nombre)[[1]][length(gregexpr(" ",nuevo_nombre)[[1]])]
+              forma_juridica1 <- str_trim(substring(nuevo_nombre,pos_ultimo_espacio,nchar(nuevo_nombre)))
+              
+              if(nchar(forma_juridica1) > 3){
+                forma_juridica1 <- "Otras"
+              }
+            }
+            forma_juridica <- c(forma_juridica, forma_juridica1)
+          }
+          
+          datos_borme$`Forma Jurídica` <- gsub("\\.","",forma_juridica)
+          
+          # Fechas
+          datos_borme$Fecha <- as.character(datos_borme$Fecha)
+          
+          # Capital social de consituticion a num para orden en tabla.
+          datos_borme$`Constitución capital`[datos_borme$`Constitución capital` != "-"] <- str_match(datos_borme$`Constitución capital`[datos_borme$`Constitución capital` != "-"], " \\s*(.*?)\\s* euros")[,2]
+          datos_borme$`Constitución capital`[!grepl("[a-d]",datos_borme$`Constitución capital`) & datos_borme$`Constitución capital` != "-"] <- gsub("[,].*","",unlist(gsub("[ ].*","", str_extract_all(datos_borme$`Constitución capital`[!grepl("[a-d]",datos_borme$`Constitución capital`) & datos_borme$`Constitución capital` != "-"],"\\(?[0-9,.]+\\)?"))))
+          datos_borme$`Constitución capital`[!grepl("[a-d]",datos_borme$`Constitución capital`) & datos_borme$`Constitución capital` != "-"] <- as.numeric(gsub("[.]","",datos_borme$`Constitución capital`[!grepl("[a-d]",datos_borme$`Constitución capital`) & datos_borme$`Constitución capital` != "-"]))
+          datos_borme$`Constitución capital`[!grepl("[a-d]",datos_borme$`Constitución capital`) & datos_borme$`Constitución capital` != "-"] <- format(as.numeric(datos_borme$`Constitución capital`[!grepl("[a-d]",datos_borme$`Constitución capital`) & datos_borme$`Constitución capital` != "-"]), big.mark = ".")
+          
+          datos$borme_anterior = datos_borme
+        }
       }
     })
     
@@ -915,6 +998,8 @@ server <- function(input, output, session) {
         
         datos_borme <- datos$borme
         
+        datos_borme <- datos_borme[as.Date(datos_borme$fecha, format="%d/%m/%Y") >= input$fechas_listado_borme[1] & as.Date(datos_borme$fecha, format="%d/%m/%Y") <= input$fechas_listado_borme[2],]
+        
         nombres <- c("Denominación social","Fusión sociedades absorbidas", "Modificaciones estatutarias",
                      "Cambio denominación social", "Cambio domicilio social", "Cambio objeto social",
                      "Ceses liquiSoli", "Ceses apoderado", "Ceses Adm. Único",
@@ -951,7 +1036,7 @@ server <- function(input, output, session) {
         progress <- Progress$new(session)
         long <- 1:2
         avance_barra <- rescale(long,c(0.5,1.0))
-        progress$set(value = 0.5, message = 'Procesando datos...')
+        progress$set(value = 0.5, message = 'Procesando datos. Puede tardar varios segundos.')
         
         # ASIGNACIÓN DE MUNICIPIO ARANDA DE DUERO
         for(i in 1:nrow(datos_borme)){
@@ -959,7 +1044,7 @@ server <- function(input, output, session) {
                                              "Aranda de Duero",
                                              datos_borme$Municipio[i])
         }
-        progress$set(value = 1, message = 'Procesando datos...')
+        progress$set(value = 1, message = 'Procesando datos. Puede tardar varios segundos.')
         progress$close()
 
         #Generación forma jurídica
@@ -1000,7 +1085,11 @@ server <- function(input, output, session) {
     # 1) Filtrado datos BORME
     datos_filtrados_borme <- reactive({
 
-        df <- datos_estructurados_borme()  #Llamada a API
+        df <- datos$borme  #Llamada a API
+        
+        print(df$Fecha)
+        #Filtro fecha
+        df <- df[as.Date(df$Fecha, format="%d/%m/%Y") >= input$fechas_listado_borme[1] & as.Date(df$Fecha, format="%d/%m/%Y") <= input$fechas_listado_borme[2],]
         
         if(df == 0){
           return(0)
@@ -1072,7 +1161,7 @@ server <- function(input, output, session) {
     # 2) Filtrado datos BORME TERRITORIO DE COMPARACIÓN
     datos_filtrados_borme_comparativa <- reactive({
 
-        df <- datos_estructurados_borme()  #Llamada a API
+        df <- datos$borme  #Llamada a API
         
         if(df == 0 | df == 1 | df == 2){
           return(df)
@@ -2558,9 +2647,9 @@ server <- function(input, output, session) {
           if(input$tabs_borme == "Listado informativo"){
             df_tabla <- manejo_tablas_borme()
             df <- df_tabla[,1:(ncol(df_tabla)-6)] #Evita la visualización de las variables lat,long,municipio y provincia.
-          }else if(input$tabs_borme == "Estadística básica 1"){
+          }else if(input$tabs_borme == "Descripción territorio"){
             df <- estadistica_basica_1()
-          }else if(input$tabs_borme == "Estadística básica 2"){
+          }else if(input$tabs_borme == "Descripción mensual"){
             df <- estadistica_basica_2()
             df <- recuento_estadistica_basica_2(df,2)  #Flag 2 para devolución con cálculos estadísticos
           }else if(input$tabs_borme == "Modificaciones capital"){
@@ -2568,7 +2657,7 @@ server <- function(input, output, session) {
           }else{
             df <- datos_filtrados_borme() 
           }
-          write.csv(df, file, eol="\n", sep = ",")  # eol="\n" es para el encoding de caracteres en .csv
+          write.csv(df, file, eol="\n", sep = ",", row.names = TRUE)  # eol="\n" es para el encoding de caracteres en .csv
         }
     )
 
@@ -2581,9 +2670,9 @@ server <- function(input, output, session) {
           if(input$tabs_borme == "Listado informativo"){
             df_tabla <- manejo_tablas_borme()
             df <- df_tabla[,1:(ncol(df_tabla)-6)] #Evita la visualización de las variables lat,long,municipio y provincia.
-          }else if(input$tabs_borme == "Estadística básica 1"){
+          }else if(input$tabs_borme == "Descripción territorio"){
             df <- estadistica_basica_1()
-          }else if(input$tabs_borme == "Estadística básica 2"){
+          }else if(input$tabs_borme == "Descripción mensual"){
             df <- estadistica_basica_2()
             df <- recuento_estadistica_basica_2(df,2)  #Flag 2 para devolución con cálculos estadísticos
           }else if(input$tabs_borme == "Modificaciones capital"){
@@ -2594,7 +2683,7 @@ server <- function(input, output, session) {
           
           wb <- openxlsx::createWorkbook()
           openxlsx::addWorksheet(wb, sheetName = "Datos")
-          openxlsx::writeData(wb, sheet = 1, x = df)
+          openxlsx::writeData(wb, sheet = 1, x = df, rowNames = TRUE)
           openxlsx::saveWorkbook(wb, file)
         }
     )
@@ -2830,9 +2919,13 @@ server <- function(input, output, session) {
       
       filename = paste0("Censo_filtrado","_",Sys.Date(),".csv"),
       content  = function(file) {
-        df <- datos_filtrado_mapa()
-        
-        write.csv(df, file, eol="\n", sep = ",")
+        if(input$tabs_censo == "Aranda de Duero"){
+          df <- datos_filtrado_mapa()
+        }else{
+          df <- datos_filtrado_mapa_bodegas()
+        }
+
+        write.csv(df, file, eol="\n", sep = ",", row.names = TRUE)
       })
     
     
@@ -3261,13 +3354,13 @@ server <- function(input, output, session) {
     })
     
     #Descarga de datos
-    output$downloadDatacenso_csv <- downloadHandler(
+    output$downloadDataestablecimientos_csv <- downloadHandler(
       
-      filename = paste0("Censo_filtrado","_",Sys.Date(),".csv"),
+      filename = paste0("Establecimientos_filtrado","_",Sys.Date(),".csv"),
       content  = function(file) {
-        df <-  datos_filtrado_establecimientos()
+        df <-  datos_filtrado_mapa_establecimientos()
         
-        write.csv(df, file, eol="\n", sep = ",")
+        write.csv(df, file, eol="\n", sep = ",", row.names = TRUE)
       })
     
     
