@@ -83,7 +83,8 @@ colnames(df_establecimientos) <- c("Establecimiento","Valoración","Reviews","Ca
 #==================
 
 # CENSO
-df_censo <- read.csv("censo_aranda_duero.csv", header = TRUE, sep = ";", stringsAsFactors = FALSE, encoding = "latin1", dec = ",")
+#df_censo <- read.csv("censo_aranda_duero.csv", header = TRUE, sep = ";", stringsAsFactors = FALSE, encoding = "latin1", dec = ",")
+df_censo <- read.csv("censo_y_trabajo_aranda.csv", header = TRUE, sep = ",", stringsAsFactors = FALSE, encoding = "UTF-8", dec = ",")
 #df_censo$Índice_crec_interanual_ventas <- ifelse(any(grepl("[0-9]",df_censo$Índice_crec_interanual_ventas)),df_censo$Índice_crec_interanual_ventas,"-")
 
 df_censo$Latitud[df_censo$Denominación_social == "Calidad Pascual Sau"] <- 41.677336
@@ -122,7 +123,7 @@ TIO <- TIO[order(TIO$`CONSUMO hogares`,decreasing = TRUE),]
 #====================
 # REFERENCIA CNAES
 #====================
-df_cnae <- read.csv("referencia_CNAEs.csv", header = TRUE, sep = ";")
+df_cnae <- read.csv("referencia_CNAEs.csv", header = TRUE, sep = ";", encoding = "latin1")
 df_cnae <- df_cnae[,c(1,3)]
 df_cnae$completo <- paste(df_cnae[,1],df_cnae[,2], sep = " ")
 
@@ -238,6 +239,11 @@ ui <- fluidPage(style = "width: 100%; height: 100%;",
                                                                           "Transformación" = 9,
                                                                           "Situación concursal" = 10),
                                                            selected = 1
+                                        ),
+                                        
+                                        selectInput("div_cnae_borme", "Filtro por CNAE",
+                                                    #c("Todos",substring(unique(df_censo$CNAE),1,2)[order(substring(unique(df_censo$CNAE),1,2))][-1])
+                                                    c("Todos",df_cnae$completo), multiple = TRUE, selected = "Todos"
                                         ),
                                         
                                         radioButtons("variables_mapa", "Selección variables",
@@ -711,6 +717,23 @@ server <- function(input, output, session) {
                                              "Aranda de Duero",
                                              datos_borme$Municipio[i])
         }
+        
+        #Asigancion variable CNAE
+        datos_borme$CNAE <- rep("-",nrow(datos_borme))
+        borme_aranda <- datos_borme[datos_borme$Municipio == "Aranda de Duero",]
+        borme_no_aranda <- datos_borme[datos_borme$Municipio != "Aranda de Duero",]
+        
+        df_censo_borme <- df_censo[which(tolower(gsub("[.]","",df_censo$Denominación_social)) %in% tolower(gsub("[.]","",borme_aranda$`Denominación social`))),]
+        
+        borme_aranda1 <- borme_aranda[tolower(gsub("[.]","",borme_aranda$`Denominación social`)) %in% tolower(gsub("[.]","",df_censo_borme$Denominación_social)),]
+        borme_aranda2 <- borme_aranda[!(tolower(gsub("[.]","",borme_aranda$`Denominación social`)) %in% tolower(gsub("[.]","",df_censo_borme$Denominación_social))),]
+        
+        for(i in 1:nrow(borme_aranda1)){
+          borme_aranda1$CNAE[i] <- df_censo_borme$CNAE[tolower(gsub("[.]","",df_censo_borme$Denominación_social)) == tolower(gsub("[.]","",borme_aranda1$`Denominación social`[i]))]
+        }
+        borme_aranda <- rbind(borme_aranda1,borme_aranda2)
+        datos_borme <- rbind(borme_aranda,borme_no_aranda)
+        
         progress$set(value = 1, message = 'Procesando datos. Puede tardar varios segundos.')
         progress$close()
         
@@ -724,7 +747,11 @@ server <- function(input, output, session) {
             pos_ultimo_espacio <- gregexpr(" ",nuevo_nombre)[[1]][length(gregexpr(" ",nuevo_nombre)[[1]])]
             forma_juridica1 <- str_trim(substring(nuevo_nombre,pos_ultimo_espacio,nchar(nuevo_nombre)))
             
-            if(nchar(forma_juridica1) > 3){
+            if(nchar(forma_juridica1) > 3 | nchar(forma_juridica1) == 1){
+              forma_juridica1 <- "Otras"
+            }
+          }else{
+            if(nchar(gsub("\\.","",forma_juridica1)) > 2 & all(gsub("\\.","",forma_juridica1) != c("AIE","OMS","SAD","SAL","SAP","SCP","SLL","SLP"))){
               forma_juridica1 <- "Otras"
             }
           }
@@ -867,6 +894,8 @@ server <- function(input, output, session) {
                                                "Aranda de Duero",
                                                datos_borme$Municipio[i])
           }
+          
+          
           progress$set(value = 1, message = 'Procesando datos. Puede tardar varios segundos.')
           progress$close()
           
@@ -880,7 +909,11 @@ server <- function(input, output, session) {
               pos_ultimo_espacio <- gregexpr(" ",nuevo_nombre)[[1]][length(gregexpr(" ",nuevo_nombre)[[1]])]
               forma_juridica1 <- str_trim(substring(nuevo_nombre,pos_ultimo_espacio,nchar(nuevo_nombre)))
               
-              if(nchar(forma_juridica1) > 3){
+              if(nchar(forma_juridica1) > 3 | nchar(forma_juridica1) == 1){
+                forma_juridica1 <- "Otras"
+              }
+            }else{
+              if(nchar(gsub("\\.","",forma_juridica1)) > 2 & all(gsub("\\.","",forma_juridica1) != c("AIE","OMS","SAD","SAL","SAP","SCP","SLL","SLP"))){
                 forma_juridica1 <- "Otras"
               }
             }
@@ -1044,6 +1077,15 @@ server <- function(input, output, session) {
                                              "Aranda de Duero",
                                              datos_borme$Municipio[i])
         }
+        #Asigancion variable CNAE
+        datos_borme$CNAE <- rep("-",nrow(datos_borme))
+        borme_aranda <- datos_borme[datos_borme$Municipio == "Aranda de Duero",]
+        borme_no_aranda <- datos_borme[datos_borme$Municipio != "Aranda de Duero",]
+        
+        borme_aranda$CNAE <- df_censo$CNAE[which(borme_aranda$`Denominación social`%in% df_censo$Denominación_social)]
+        datos_borme <- rbind(borme_aranda,borme_no_aranda)
+        
+        
         progress$set(value = 1, message = 'Procesando datos. Puede tardar varios segundos.')
         progress$close()
 
@@ -1087,7 +1129,6 @@ server <- function(input, output, session) {
 
         df <- datos$borme  #Llamada a API
         
-        print(df$Fecha)
         #Filtro fecha
         df <- df[as.Date(df$Fecha, format="%d/%m/%Y") >= input$fechas_listado_borme[1] & as.Date(df$Fecha, format="%d/%m/%Y") <= input$fechas_listado_borme[2],]
         
@@ -1104,7 +1145,7 @@ server <- function(input, output, session) {
         }
     
         #1)Filtrado en funcón de tab
-        df <- df[,c("Denominación social",unlist(lista_variables_borme[as.numeric(variables_entrada)]),"Latitud","Longitud","Municipio","Fecha","Forma Jurídica")]
+        df <- df[,c("Denominación social",unlist(lista_variables_borme[as.numeric(variables_entrada)]),"Latitud","Longitud","Municipio","Fecha","Forma Jurídica","CNAE")]
 
         #df <- na.omit(df)
         
@@ -1112,7 +1153,7 @@ server <- function(input, output, session) {
           return(0)
         }else if(is.null(variables_entrada)){
           return(1)
-        }else if(is.null(colnames(df[,2:(ncol(df)-5)])) & ncol(df) != 7 ){
+        }else if(is.null(colnames(df[,2:(ncol(df)-6)])) & ncol(df) != 8 ){
           return(2)
         }
         
@@ -1143,12 +1184,72 @@ server <- function(input, output, session) {
           return(0)
         }
         
+        
+        #FILTRO CNAE
+        # 3) Filtro por división CNAE
+        # Manejo de error: "inexistencia de datos para los filtros seleccionados" de cara al usuario
+        shiny::validate(
+          need(!is.null(input$div_cnae_borme),
+               "Atención!\nNo se ha seleccionado ningún CNAE.\nSeleccione un CNAE por favor.")
+        )
+        
+        if(input$div_cnae_borme == "Todos"){  
+          df <- df
+        }else if(length(input$div_cnae_borme) > 1){
+          codigos_a_extraer <- c()
+          for(i in 1:length(input$div_cnae_borme)){
+            if(grepl("[A-Z]",substring(input$div_cnae_borme[i],1,1))){
+              
+              pos_letra_demandada <- grep(substring(input$div_cnae_borme[i],1,1),letters,ignore.case = TRUE)
+              codigos_2 <- gsub("([0-9]+).*$", "\\1",
+                                df_cnae$completo[c((grep(letters[pos_letra_demandada],df_cnae$COD_CNAE2009,ignore.case = TRUE) + 1):
+                                                     (grep(letters[pos_letra_demandada + 1],df_cnae$COD_CNAE2009,ignore.case = TRUE) - 1)
+                                )]
+              )
+              #codigos_2 <-  codigos_2[nchar(codigos_2) > 3]
+            }else{
+              codigo_seleccionado <- gsub("([0-9]+).*$", "\\1", input$div_cnae_borme[i])
+              numero_de_carct <- nchar(codigo_seleccionado)
+              codigos_2 <- gsub("([0-9]+).*$", "\\1",
+                                df_cnae$completo[grep(codigo_seleccionado,substring(df_cnae$COD_CNAE2009,1,numero_de_carct))]
+              )
+              #codigos_a_extraer <- codigos_a_extraer[nchar(codigos_a_extraer) > 3]
+              #codigos_2 <- codigos_2[nchar(codigos_2) > 3]
+            }
+            codigos_a_extraer <- c(codigos_a_extraer, codigos_2)
+          }
+          df <- df[which(gsub("([0-9]+).*$", "\\1",df$CNAE) %in% codigos_a_extraer),]
+          
+        }else{
+          if(grepl("[A-Z]",substring(input$div_cnae_borme,1,1))){
+            
+            pos_letra_demandada <- grep(substring(input$div_cnae_borme,1,1),letters,ignore.case = TRUE)
+            codigos_a_extraer <- gsub("([0-9]+).*$", "\\1",
+                                      df_cnae$completo[c((grep(letters[pos_letra_demandada],df_cnae$COD_CNAE2009,ignore.case = TRUE) + 1):
+                                                           (grep(letters[pos_letra_demandada + 1],df_cnae$COD_CNAE2009,ignore.case = TRUE) - 1)
+                                      )]
+            )
+            #codigos_a_extraer <- codigos_a_extraer[nchar(codigos_a_extraer) > 3]
+          }else{
+            codigo_seleccionado <- gsub("([0-9]+).*$", "\\1", input$div_cnae_borme)
+            numero_de_carct <- nchar(codigo_seleccionado)
+            codigos_a_extraer <- gsub("([0-9]+).*$", "\\1",
+                                      df_cnae$completo[grep(codigo_seleccionado,substring(df_cnae$COD_CNAE2009,1,numero_de_carct))]
+            )
+            #codigos_a_extraer <- codigos_a_extraer[nchar(codigos_a_extraer) > 3]
+          }
+          df <- df[which(gsub("([0-9]+).*$", "\\1",df$CNAE) %in% codigos_a_extraer),]
+        }
+        
+        
+        
+        
         #Eliminación filas con "-" en todas las columnas
         df[df=="-"] <- NA
-        if(ncol(df) == 7){
+        if(ncol(df) == 8){
           df <- df[!is.na(df[,2]),]
         }else{
-          df <- df[rowSums(is.na(df[,2:(ncol(df)-5)])) != (ncol(df[,2:(ncol(df)-5)])), ]  #Se elimina si el número de columnas de la fila (las que se pueden seleccionar) con todo NA == al número de columnas (las que se pueden seleccionar)
+          df <- df[rowSums(is.na(df[,2:(ncol(df)-6)])) != (ncol(df[,2:(ncol(df)-6)])), ]  #Se elimina si el número de columnas de la fila (las que se pueden seleccionar) con todo NA == al número de columnas (las que se pueden seleccionar)
         }
         
         if(nrow(df) == 0){
@@ -1176,14 +1277,14 @@ server <- function(input, output, session) {
         }
         
         #1)Filtrado en funcón de tab
-        df <- df[,c("Denominación social",unlist(lista_variables_borme[as.numeric(variables_entrada)]),"Latitud","Longitud","Municipio","Fecha","Forma Jurídica")]
+        df <- df[,c("Denominación social",unlist(lista_variables_borme[as.numeric(variables_entrada)]),"Latitud","Longitud","Municipio","Fecha","Forma Jurídica","CNAE")]
         
         
         if(ncol(df) == 0){
           return(0)
         }else if(is.null(variables_entrada)){
           return(1)
-        }else if(is.null(colnames(df[,2:(ncol(df)-5)])) & ncol(df) != 7 ){
+        }else if(is.null(colnames(df[,2:(ncol(df)-6)])) & ncol(df) != 8 ){
           return(2)
         }
 
@@ -1216,16 +1317,16 @@ server <- function(input, output, session) {
           return(0)
         }else if(is.null(variables_entrada)){
           return(1)
-        }else if(is.null(colnames(df[,2:(ncol(df)-5)])) & ncol(df) != 7 ){
+        }else if(is.null(colnames(df[,2:(ncol(df)-6)])) & ncol(df) != 8 ){
           return(2)
         }
 
         #Eliminación "-" si están en todas las columnas
         df[df=="-"] <- NA
-        if(ncol(df) == 7){
+        if(ncol(df) == 8){
           df <- df[!is.na(df[,2]),]
         }else{
-          df <- df[rowSums(is.na(df[,2:(ncol(df)-5)])) != (ncol(df[,2:(ncol(df)-5)])), ]  #Se elimina si el número de columnas (las que se pueden seleccionar) con todo NA == al número de columnas (las que se pueden seleccionar)
+          df <- df[rowSums(is.na(df[,2:(ncol(df)-6)])) != (ncol(df[,2:(ncol(df)-6)])), ]  #Se elimina si el número de columnas (las que se pueden seleccionar) con todo NA == al número de columnas (las que se pueden seleccionar)
         }
         
         # Manejo de error: "inexistencia de datos para los filtros seleccionados" de cara al usuario
@@ -1672,10 +1773,13 @@ server <- function(input, output, session) {
                  "¡Atención!\nNo existen datos disponibles para el valor de los filtros seleccionados.\nModifica el valor de los filtros si lo desea.")
         )
         #Límite visualización registros tabla
-        tabla <- datatable(df_tabla, options = list(pageLength = 5,
+        tabla <- datatable(df_tabla, extensions = c('FixedHeader','Buttons'), options = list(pageLength = 5,
                                                     columnDefs = list(list(className = 'dt-center', targets = "_all")),
                                                     scrollX=TRUE,
-                                                    scrollCollapse=TRUE),
+                                                    scrollCollapse=TRUE,
+                                                    fixedHeader = TRUE,
+                                                    dom = 'lBfrtip', 
+                                                    buttons = c('copy', 'csv', 'excel', 'pdf')),
                            escape = FALSE)
 
         return(tabla)
@@ -1722,10 +1826,13 @@ server <- function(input, output, session) {
       df_tabla_censo_filtrado <- df_censo[which(tolower(gsub("[.]","",df_censo$Denominación_social)) %in% tolower(gsub("[.]","",fichas_empresas))),]
       
       #Límite visualización registros tabla
-      tabla <- datatable(df_tabla_censo_filtrado, options = list(pageLength = 5,
+      tabla <- datatable(df_tabla_censo_filtrado, extensions = c('FixedHeader','Buttons'), options = list(pageLength = 5,
                                                   columnDefs = list(list(className = 'dt-center', targets = "_all")),
                                                   scrollX=TRUE,
-                                                  scrollCollapse=TRUE),
+                                                  scrollCollapse=TRUE,
+                                                  fixedHeader = TRUE,
+                                                  dom = 'lBfrtip', 
+                                                  buttons = c('copy', 'csv', 'excel', 'pdf')),
                          escape = FALSE)
       
       return(tabla)
@@ -1772,10 +1879,13 @@ server <- function(input, output, session) {
       df_tabla_censo_filtrado <- df_censo[which(tolower(gsub("[.]","",df_censo$Denominación_social)) %in% tolower(gsub("[.]","",fichas_empresas))),]
 
       #Límite visualización registros tabla
-      tabla <- datatable(df_tabla_censo_filtrado, options = list(pageLength = 5,
+      tabla <- datatable(df_tabla_censo_filtrado, extensions = c('FixedHeader','Buttons'), options = list(pageLength = 5,
                                                                  columnDefs = list(list(className = 'dt-center', targets = "_all")),
                                                                  scrollX=TRUE,
-                                                                 scrollCollapse=TRUE),
+                                                                 scrollCollapse=TRUE,
+                                                                 fixedHeader = TRUE,
+                                                                 dom = 'lBfrtip', 
+                                                                 buttons = c('copy', 'csv', 'excel', 'pdf')),
                          escape = FALSE)
       
       return(tabla)
@@ -1809,10 +1919,13 @@ server <- function(input, output, session) {
         df_tabla$Total <- round(df_tabla$Total,0)
 
         #Límite visualización registros tabla
-        tabla <- datatable(df_tabla, options = list(pageLength = 5,
+        tabla <- datatable(df_tabla, extensions = c('FixedHeader','Buttons'), options = list(pageLength = 5,
                                                     columnDefs = list(list(className = 'dt-center', targets = "_all")),
                                                     scrollX=TRUE,
-                                                    scrollCollapse=TRUE),
+                                                    scrollCollapse=TRUE,
+                                                    fixedHeader = TRUE,
+                                                    dom = 'lBfrtip', 
+                                                    buttons = c('copy', 'csv', 'excel', 'pdf')),
                            escape = FALSE)
         return(tabla)
     },options = list(scrollX = T))
@@ -1836,10 +1949,13 @@ server <- function(input, output, session) {
         )
         
         #Límite visualización registros tabla
-        tabla <- datatable(df, options = list(pageLength = 25,
+        tabla <- datatable(df, extensions = c('FixedHeader','Buttons'), options = list(pageLength = 25,
                                                     columnDefs = list(list(className = 'dt-center', targets = "_all")),
                                                     scrollX=TRUE,
-                                                    scrollCollapse=TRUE),
+                                                    scrollCollapse=TRUE,
+                                                    fixedHeader = TRUE,
+                                                    dom = 'lBfrtip', 
+                                                    buttons = c('copy', 'csv', 'excel', 'pdf')),
                            escape = FALSE)
         return(tabla)
     },options = list(scrollX = T))
@@ -1861,16 +1977,19 @@ server <- function(input, output, session) {
       )
       
       if(input$variables_mapa == 1){
-        df_tabla <- df_tabla[,c(1,2,3,4,5)]
+        df_tabla <- df_tabla[,c(1,2,3,4,5,11)]
       }else{
-        df_tabla <- df_tabla[,c(1,2,3)]
+        df_tabla <- df_tabla[,c(1,2,3,9)]
       }
       
       #Límite visualización registros tabla
-      tabla <- datatable(df_tabla, options = list(pageLength = 5,
+      tabla <- datatable(df_tabla, extensions = c('FixedHeader','Buttons'), options = list(pageLength = 5,
                                                   columnDefs = list(list(className = 'dt-center', targets = "_all")),
                                                   scrollX=TRUE,
-                                                  scrollCollapse=TRUE),
+                                                  scrollCollapse=TRUE,
+                                                  fixedHeader = TRUE,
+                                                  dom = 'lBfrtip', 
+                                                  buttons = c('copy', 'csv', 'excel', 'pdf')),
                          escape = FALSE)
       return(tabla)
     })
@@ -2126,10 +2245,13 @@ server <- function(input, output, session) {
       df <- ayuda_borme_capital()
 
       #Límite visualización registros tabla
-      tabla <- datatable(df, options = list(pageLength = 5,
+      tabla <- datatable(df, extensions = c('FixedHeader','Buttons'), options = list(pageLength = 5,
                                                   columnDefs = list(list(className = 'dt-center', targets = "_all")),
                                                   scrollX=TRUE,
-                                                  scrollCollapse=TRUE),
+                                                  scrollCollapse=TRUE,
+                                                  fixedHeader = TRUE,
+                                                  dom = 'lBfrtip', 
+                                                  buttons = c('copy', 'csv', 'excel', 'pdf')),
                          escape = FALSE)
       return(tabla)
     },options = list(scrollX = T))
@@ -2728,10 +2850,12 @@ server <- function(input, output, session) {
       
       df <- df_censo
       
+      df$`Fecha_constitución`[df$`Fecha_constitución` == "-"] <- NA
+      
       # 1) Filtro por intervalo de fechas
       df <- df[as.Date(as.character(df$`Fecha_constitución`), "%d/%m/%Y") >= as.Date(input$fechas[1]) &
                  as.Date(as.character(df$`Fecha_constitución`)) <= as.Date(input$fechas[2]) |
-                 df$`Fecha_constitución` == "-",]
+                 is.na(df$`Fecha_constitución`),]
 
       # 2) Filtro por num empleados
       # Lógica selección empleados == 2- cuando input empleados == 0
@@ -2834,7 +2958,7 @@ server <- function(input, output, session) {
         df <- df
       }
       
-      df <- df[,c(1,2,5,6,7,8,10,9,21,11,12,20,23,19,18,16,15,17,13,14,3,4)]
+      df <- df[,c(1,2,3,5,21,4,5,7,6,18,8,9,20,16,15,13,12,14,10,11,22,23)]
       
       df
       
@@ -2858,7 +2982,8 @@ server <- function(input, output, session) {
       
       df <- datos_filtrado_mapa()
       
-      df <- df[as.numeric(df$Latitud) > 41,]
+      df <- df[as.numeric(df$Latitud) > 41.63 & as.numeric(df$Latitud) <= 41.7 ,]
+      df <- df[as.numeric(df$Longitud) < -3.63 & as.numeric(df$Longitud) >= -3.73 ,]
       
       latitud <- as.numeric(df$Latitud)
       longitud <- as.numeric(df$Longitud)
@@ -2907,10 +3032,14 @@ server <- function(input, output, session) {
              "Atención!\nNo existen datos disponibles para el valor de los filtros seleccionados.\nModifique el valor de los filtros si lo desea.")
       )
       
-      df <- datatable(df, options = list(pageLength = 5,
+      df <- datatable(df, extensions = c('FixedHeader','Buttons','ColReorder'), options = list(pageLength = 5,
                                          columnDefs = list(list(className = 'dt-center', targets = "_all")),
                                          scrollX=TRUE, 
-                                         scrollCollapse=TRUE),escape = F)
+                                         scrollCollapse=TRUE,
+                                         fixedHeader = TRUE,
+                                         colReorder = TRUE,
+                                         dom = 'lBfrtip', 
+                                         buttons = c('copy', 'csv', 'excel', 'pdf')),escape = F)
       
     })
     
@@ -3088,10 +3217,14 @@ server <- function(input, output, session) {
              "Atención!\nNo existen datos disponibles para el valor de los filtros seleccionados.\nModifique el valor de los filtros si lo desea.")
       )
       
-      df <- datatable(df, options = list(pageLength = 5,
+      df <- datatable(df, extensions = c('FixedHeader','Buttons','ColReorder'), options = list(pageLength = 5,
                                          columnDefs = list(list(className = 'dt-center', targets = "_all")),
                                          scrollX=TRUE, 
-                                         scrollCollapse=TRUE),escape = F)
+                                         scrollCollapse=TRUE,
+                                         fixedHeader = TRUE,
+                                         colReorder = TRUE,
+                                         dom = 'lBfrtip', 
+                                         buttons = c('copy', 'csv', 'excel', 'pdf')),escape = F)
       
     })
     
@@ -3346,10 +3479,14 @@ server <- function(input, output, session) {
       
       df <- df[,c(1:13,15,14)]
       
-      df <- datatable(df, options = list(pageLength = 5,
+      df <- datatable(df, extensions = c('FixedHeader','Buttons','ColReorder'), options = list(pageLength = 5,
                                          columnDefs = list(list(className = 'dt-center', targets = "_all")),
                                          scrollX=TRUE, 
-                                         scrollCollapse=TRUE),escape = F)
+                                         scrollCollapse=TRUE,
+                                         fixedHeader = TRUE,
+                                         colReorder = TRUE,
+                                         dom = 'lBfrtip', 
+                                         buttons = c('copy', 'csv', 'excel', 'pdf')),escape = F)
       
     })
     
