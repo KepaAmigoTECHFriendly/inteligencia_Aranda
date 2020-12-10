@@ -1921,11 +1921,10 @@ server <- function(input, output, session) {
         df_tabla$Total <- round(df_tabla$Total,0)
 
         #Límite visualización registros tabla
-        tabla <- datatable(df_tabla, extensions = c('FixedHeader','Buttons'), options = list(pageLength = 5,
+        tabla <- datatable(df_tabla, extensions = c('Buttons'), options = list(pageLength = 5,
                                                     columnDefs = list(list(className = 'dt-center', targets = "_all")),
                                                     scrollX=TRUE,
                                                     scrollCollapse=TRUE,
-                                                    fixedHeader = TRUE,
                                                     dom = 'lBfrtip', 
                                                     buttons = c('copy', 'csv', 'excel', 'pdf')),
                            escape = FALSE)
@@ -1951,11 +1950,10 @@ server <- function(input, output, session) {
         )
         
         #Límite visualización registros tabla
-        tabla <- datatable(df, extensions = c('FixedHeader','Buttons'), options = list(pageLength = 25,
+        tabla <- datatable(df, extensions = c('Buttons'), options = list(pageLength = 25,
                                                     columnDefs = list(list(className = 'dt-center', targets = "_all")),
                                                     scrollX=TRUE,
                                                     scrollCollapse=TRUE,
-                                                    fixedHeader = TRUE,
                                                     dom = 'lBfrtip', 
                                                     buttons = c('copy', 'csv', 'excel', 'pdf')),
                            escape = FALSE)
@@ -2247,11 +2245,10 @@ server <- function(input, output, session) {
       df <- ayuda_borme_capital()
 
       #Límite visualización registros tabla
-      tabla <- datatable(df, extensions = c('FixedHeader','Buttons'), options = list(pageLength = 5,
+      tabla <- datatable(df, extensions = c('Buttons'), options = list(pageLength = 5,
                                                   columnDefs = list(list(className = 'dt-center', targets = "_all")),
                                                   scrollX=TRUE,
                                                   scrollCollapse=TRUE,
-                                                  fixedHeader = TRUE,
                                                   dom = 'lBfrtip', 
                                                   buttons = c('copy', 'csv', 'excel', 'pdf')),
                          escape = FALSE)
