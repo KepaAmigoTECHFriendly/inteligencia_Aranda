@@ -101,23 +101,25 @@ archivo <- "TIO_ARANDA_2010.xlsx"
 
 #Limpieza
 datos_raw <- xlsx::read.xlsx(archivo,5,sep=".",stringsAsFactors = FALSE)
-TIO <- datos_raw[,1:(length(datos_raw)-5)]
+TIO <- datos_raw
 TIO[is.na(TIO)] <- 0.00
 
-TIO <- TIO[,-c(97,96,92,91,90,89,85,84)]
+TIO <- TIO[,-c(84,85,90,91,92,96,98,99,100,101,102)]
+col <- gsub("[.]"," ",colnames(TIO[84:91]))
 columnas <- TIO$Sector.al.que.se.compra %>% as.character() %>% t()
-colnames(TIO) <- c("Sector",columnas,"CONSUMO hogares","CONSUMO instituciones sin ánimo de lucro", "CONSUMO AAPPs",
-                     "EXPORTACIONES resto España", "EXPORTACIONES UE","EXPORTACIONES mundo")
+colnames(TIO) <- c("Sector",columnas,col)
 Encoding(TIO$Sector) <- "UTF-8"
 Encoding(colnames(TIO)) <- "UTF-8"
 
-for(i in 2:length(TIO))
+for(i in 2:(length(TIO)-1))
 {
-  TIO[,i] <- round(TIO[,i]/sum(TIO[,i])*100,2)
+  TIO[,i] <- round(TIO[,i]/TIO[,(ncol(TIO))]*100,2)
 }
 
+colnames(TIO)[84] <- "CONSUMO hogares"
 TIO[is.na(TIO)] <- 0.00
-TIO <- TIO[order(TIO$`CONSUMO hogares`,decreasing = TRUE),]
+
+colnames(TIO)[2:83] <- as.character(TIO[,1])
 
 
 #====================
@@ -3464,8 +3466,6 @@ server <- function(input, output, session) {
              "Atención!\nNo existen datos disponibles para el valor de los filtros seleccionados.\nModifique el valor de los filtros si lo desea.")
       )
       
-      df$Web[df$Web != "-"] <- paste("https://www.",df$Web, sep= "")
-      
       # Links URL y RRSS
       df$Web <- paste0("<a href='", df$Web,"' target='_blank'>", df$Web,"</a>")
       df$`URL Google Maps` <- paste0("<a href='", df$`URL Google Maps`,"' target='_blank'>", "Google Maps","</a>")
@@ -3551,6 +3551,8 @@ server <- function(input, output, session) {
       relaciones_totales <- relaciones_totales[relaciones_totales$flujo>=1,]
       relaciones_totales <- relaciones_totales %>% unique()
       
+      relaciones_totales
+      
     })
     
     output$graf_tio <- renderPlot({
@@ -3598,6 +3600,8 @@ server <- function(input, output, session) {
       #membership(sgc)
       #clusters <- data.frame(sgc$membership,vertices)
       
+      print("=============")
+      print(length(grafo))
       sgc_2 <- cluster_spinglass(grafo, weights = E(grafo)$flujo,spins=25)
       clusters_2 <- data.frame(sgc_2$membership,vertices)
       
