@@ -415,6 +415,10 @@ ui <- fluidPage(style = "width: 100%; height: 100%;",
                                                              ),
                                                              fluidRow(
                                                                dataTableOutput("tabla")
+                                                             ),
+                                                             fluidRow(style='padding-top: 18px;',
+                                                                      uiOutput("texto_tabla_censo_establecimientos_mapa"),
+                                                                      dataTableOutput("tabla_censo_establecimientos_mapa"),
                                                              )
                                                     ),
                                                     
@@ -714,11 +718,7 @@ server <- function(input, output, session) {
         progress$set(value = 0.5, message = 'Procesando datos. Puede tardar varios segundos.')
         
         # ASIGNACIÓN DE MUNICIPIO ARANDA DE DUERO
-        for(i in 1:nrow(datos_borme)){
-          datos_borme$Municipio[i] <- ifelse(datos_borme$Municipio[i] == "-" & any(grepl(tolower(datos_borme$`Denominación social`)[i], tolower(gsub("[.]","",df_censo$Denominación_social)))), 
-                                             "Aranda de Duero",
-                                             datos_borme$Municipio[i])
-        }
+        datos_borme$Municipio[tolower(datos_borme$`Denominación social`) %in% tolower(gsub("[.]","",df_censo$Denominación_social))] <- "Aranda de Duero"
         
         #Asigancion variable CNAE
         datos_borme$CNAE <- rep("-",nrow(datos_borme))
@@ -891,13 +891,8 @@ server <- function(input, output, session) {
           progress$set(value = 0.5, message = 'Procesando datos.\nPuede tardar varios segundos.')
           
           # ASIGNACIÓN DE MUNICIPIO ARANDA DE DUERO
-          for(i in 1:nrow(datos_borme)){
-            datos_borme$Municipio[i] <- ifelse(datos_borme$Municipio[i] == "-" & any(grepl(tolower(datos_borme$`Denominación social`)[i], tolower(gsub("[.]","",df_censo$Denominación_social)))), 
-                                               "Aranda de Duero",
-                                               datos_borme$Municipio[i])
-          }
-          
-          
+          datos_borme$Municipio[tolower(datos_borme$`Denominación social`) %in% tolower(gsub("[.]","",df_censo$Denominación_social))] <- "Aranda de Duero"
+
           progress$set(value = 1, message = 'Procesando datos. Puede tardar varios segundos.')
           progress$close()
           
@@ -3011,7 +3006,7 @@ server <- function(input, output, session) {
       )
 
       # Links URL y RRSS
-      df$URL <- paste0("<a href='", df$URL,"' target='_blank'>", df$URL,"</a>")
+      df$URL <- paste0("<a href=https://'", df$URL,"' target='_blank'>", df$URL,"</a>")
       #df$RRSS <- paste0("<a href='", df$RRSS,"' target='_blank'>", df$RRSS,"</a>")
       
       pos_urls <- grep("https",df$RRSS)
@@ -3042,6 +3037,47 @@ server <- function(input, output, session) {
       
     })
     
+    # TABLA CENSO ESTABLECIMIENTOS MAPA
+    output$tabla_censo_establecimientos_mapa <- renderDataTable({
+      
+      df_tabla_censo <- datos_filtrado()
+      
+      shiny::validate(
+        need(nrow(df_tabla_censo) != 0,
+             "Atención!\nNo existen datos disponibles para el valor de los filtros seleccionados.\nModifique el valor de los filtros si lo desea.")
+      )
+      
+      # Filtrado por selección de registro en la tabla
+      filtrado_tabla <- input$tabla_rows_selected
+      if(length(filtrado_tabla)){
+        establecimientos <-  df_tabla_censo$Teléfono[filtrado_tabla]
+      }else{
+        establecimientos <- 0
+      }
+      
+      shiny::validate(
+        need(establecimientos != 0,
+             "")
+      )
+      
+      df_tabla_establecimientos_filtrado <- df_establecimientos[which(gsub(" ","",df_establecimientos$Teléfono) %in% gsub(" ","",establecimientos)),]
+      
+      df_tabla_establecimientos_filtrado$Web <- paste0("<a href='", df_tabla_establecimientos_filtrado$Web,"' target='_blank'>", df_tabla_establecimientos_filtrado$Web,"</a>")
+      df_tabla_establecimientos_filtrado$`URL Google Maps` <- paste0("<a href='", df_tabla_establecimientos_filtrado$`URL Google Maps`,"' target='_blank'>", "Google Maps","</a>")
+      
+      #Límite visualización registros tabla
+      tabla <- datatable(df_tabla_establecimientos_filtrado, extensions = c('FixedHeader','Buttons'), options = list(pageLength = 5,
+                                                                                                          columnDefs = list(list(className = 'dt-center', targets = "_all")),
+                                                                                                          scrollX=TRUE,
+                                                                                                          scrollCollapse=TRUE,
+                                                                                                          fixedHeader = TRUE,
+                                                                                                          dom = 'lBfrtip', 
+                                                                                                          buttons = c('copy', 'csv', 'excel', 'pdf')),escape = F)
+      
+      return(tabla)
+      
+    },options = list(scrollX = T))
+    
     #Descarga de datos
     output$downloadDatacenso_csv <- downloadHandler(
       
@@ -3055,7 +3091,6 @@ server <- function(input, output, session) {
 
         write.csv(df, file, eol="\n", sep = ",", row.names = TRUE)
       })
-    
     
     
     #=============================================
