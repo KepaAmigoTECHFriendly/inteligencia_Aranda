@@ -942,14 +942,16 @@ server <- function(input, output, session) {
         
         fechas <- dbGetQuery(con, "SELECT DISTINCT fecha_carga FROM t_establecimientos")
         fechas <- fechas[,1]
-        fecha <- as.Date(fechas[length(fechas)])
+        fechas <- fechas[order(fechas,decreasing = TRUE)]
+        fechas <- fechas[1]
+        fecha <- as.Date(fechas)
         
         progress <- Progress$new(session)
         progress$set(value = 0.4, message = 'Cargando datos...')
         
-        df_establecimientos <- dbGetQuery(con,paste("SELECT * FROM t_establecimientos WHERE fecha_carga >= TO_DATE('",fecha_inicial,"', 'YYYY-MM-DD') AND fecha_carga <= TO_DATE('",fecha_final,"', 'YYYY-MM-DD')" ,sep = ""))
+        df_establecimientos <- dbGetQuery(con,paste("SELECT * FROM t_establecimientos WHERE fecha_carga >= TO_DATE('",fecha,"', 'YYYY-MM-DD') AND fecha_carga <= TO_DATE('",fecha,"', 'YYYY-MM-DD')" ,sep = ""))
         progress$set(value = 0.6, message = 'Cargando datos...')
-        df_topics <- dbGetQuery(con,paste("SELECT * FROM t_topics WHERE fecha_carga >= TO_DATE('",fecha_inicial,"', 'YYYY-MM-DD') AND fecha_carga <= TO_DATE('",fecha_final,"', 'YYYY-MM-DD')" ,sep = ""))
+        df_topics <- dbGetQuery(con,paste("SELECT * FROM t_topics WHERE fecha_carga >= TO_DATE('",fecha,"', 'YYYY-MM-DD') AND fecha_carga <= TO_DATE('",fecha,"', 'YYYY-MM-DD')" ,sep = ""))
         
         colnames(df_establecimientos) <- c("Establecimiento","Valoración","Reviews","Categoría","Latitud","Longitud","Dirección","Código","Web","Teléfono","Regentada_mujeres","Horarios","Cierre temporal","URL Google Maps","Fecha")
         #df_establecimientos <- df_establecimientos[grep("aranda de duero",tolower(df_establecimientos$Código)),]
@@ -1771,6 +1773,7 @@ server <- function(input, output, session) {
         )
         #Límite visualización registros tabla
         tabla <- datatable(df_tabla, extensions = c('FixedHeader','Buttons'), options = list(pageLength = 5,
+                                                                                             autoWidth = TRUE,
                                                     columnDefs = list(list(className = 'dt-center', targets = "_all")),
                                                     scrollX=TRUE,
                                                     scrollCollapse=TRUE,
