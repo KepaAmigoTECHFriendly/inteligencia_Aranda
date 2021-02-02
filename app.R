@@ -501,7 +501,8 @@ ui <- fluidPage(style = "width: 100%; height: 100%;",
                                       ),
                                       
                                       mainPanel(
-                                        plotOutput("graf_tio",height = 1400)
+                                        plotOutput("graf_tio",height = 1300),
+                                        width = 10,
                                       )
                                     )
                            ), #Cierre tabla I-O
@@ -526,6 +527,12 @@ server <- function(input, output, session) {
 
     ###############################################
     # INICIALIZACIÓN LÓGICA DE VISUALIZACIÓN OBJETOS SHINY
+    
+    observeEvent(input$menu, {
+      if(input$menu == "Simulador económico Local"){
+        shinyjs::hide("inducido")
+      }
+    })
 
     # Lógica selección territorio de comparación
     observeEvent(input$comparaciones, {
@@ -619,7 +626,6 @@ server <- function(input, output, session) {
     })
     
     observeEvent(input$fechas_listado_borme, {
-      print("Entro fechas")
       #show_spinner() # show the spinner
       #show_modal_spinner() # show the modal window
       
@@ -936,7 +942,7 @@ server <- function(input, output, session) {
     # LLAMADA BBDD ESTABLECIMIENTOS
     # 1) Llamada para estado actual
     observeEvent(input$menu, {
-      if(input$menu == "Establecimientos"){
+      if(input$menu == "Establecimientos" | input$menu == "Censo de empresas"){
         fecha_inicial <- input$fechas_establecimientos[1]
         fecha_final <- input$fechas_establecimientos[2]
         
@@ -2391,11 +2397,13 @@ server <- function(input, output, session) {
 
       df <- recuento_estadistica_basica_2(df,1)  #Flag 1 para devolución recuento
       
+      
       df <- df %>% 
         dplyr::group_by(`Forma Jurídica`,Mes) %>% 
         dplyr::ungroup() %>%
         tidyr::complete(`Forma Jurídica`, Mes, fill = list(Recuento = 0))
       
+
       p <- df
       p <- p %>% plot_ly(x = ~Mes, y = ~Recuento, fill= ~`Forma Jurídica`, color = ~`Forma Jurídica`)
       p <- p %>% add_trace(type = 'scatter', mode = 'lines+markers',text = ~paste('Forma jurídica:', `Forma Jurídica`,'<br>Recuento:', Recuento))
@@ -2556,6 +2564,7 @@ server <- function(input, output, session) {
       df$Mes <- substring(df$Mes,6,7)
       
       df <- rbind(df8,df)
+      df <- unique(df)
       
       # Manejo de error: "inexistencia de datos para los filtros seleccionados" de cara al usuario
       shiny::validate(
@@ -2835,6 +2844,10 @@ server <- function(input, output, session) {
     
     
     
+    
+    
+    
+    
     # =================================================================
     # =================================================================
     # =================================================================
@@ -2955,7 +2968,7 @@ server <- function(input, output, session) {
         df <- df
       }
       
-      df <- df[,c(1,2,3,5,21,4,5,7,6,18,8,9,20,16,15,13,12,14,10,11,22,23)]
+      df <- df[,c(1,2,5,6,7,8,9,10,21,11,12,15,17,16,20,19,18,13,3,4)]
       
       df
       
@@ -3001,7 +3014,7 @@ server <- function(input, output, session) {
     output$tabla <- renderDataTable({
       
       df <- datos_filtrado()
-      
+
       # Manejo de error: "inexistencia de datos para los filtros seleccionados" de cara al usuario
       shiny::validate(
         need(nrow(df) != 0,
@@ -3044,6 +3057,7 @@ server <- function(input, output, session) {
     output$tabla_censo_establecimientos_mapa <- renderDataTable({
       
       df_tabla_censo <- datos_filtrado()
+      df_establecimientos <- datos_estblecimientos_actual$establecimientos
       
       shiny::validate(
         need(nrow(df_tabla_censo) != 0,
@@ -3063,7 +3077,7 @@ server <- function(input, output, session) {
              "")
       )
       
-      df_tabla_establecimientos_filtrado <- df_establecimientos[which(gsub(" ","",df_establecimientos$Teléfono) %in% gsub(" ","",establecimientos)),]
+      df_tabla_establecimientos_filtrado <- df_establecimientos[which(gsub("\\(\\+34\\)","",gsub(" ","",df_establecimientos$Teléfono)) %in% gsub("\\(\\+34\\)","",gsub(" ","",establecimientos))),]
       
       df_tabla_establecimientos_filtrado$Web <- paste0("<a href='", df_tabla_establecimientos_filtrado$Web,"' target='_blank'>", df_tabla_establecimientos_filtrado$Web,"</a>")
       df_tabla_establecimientos_filtrado$`URL Google Maps` <- paste0("<a href='", df_tabla_establecimientos_filtrado$`URL Google Maps`,"' target='_blank'>", "Google Maps","</a>")
@@ -3077,7 +3091,6 @@ server <- function(input, output, session) {
                                                                                                           dom = 'lBfrtip', 
                                                                                                           buttons = c('copy', 'csv', 'excel', 'pdf')),escape = F)
       
-      return(tabla)
       
     },options = list(scrollX = T))
     
@@ -3118,7 +3131,6 @@ server <- function(input, output, session) {
       # 2) Filtro por num empleados
       # Lógica selección empleados == 2- cuando input empleados == 0
       if(input$empleados[1] == 0){
-        print("entro")
         inicial_0 <- "-"
         df_sin_info_empleados <- df[df$Empleados == inicial_0,] 
         df <- df[as.numeric(gsub("[ (].*","",df$Empleados)) >= input$empleados[1] & as.numeric(gsub("[ (].*","",df$Empleados)) <= input$empleados[2],]
@@ -3430,7 +3442,7 @@ server <- function(input, output, session) {
       p <- p %>% plot_ly(x = ~Fecha, y = ~Recuento)
       p <- p %>% add_trace(type = 'scatter', mode = 'lines+markers',text = ~paste('Representación:', Representación))
       p <- p %>% layout(
-        title = paste("<b>Evolución temporal del estado de los establecimientos</b>",sep = ""),
+        title = paste("<b>Evolución temporal de los establecimientos cerrados temporalmente</b>",sep = ""),
         yaxis = list(range = c(0,(5+max(df$Recuento))))
       )
       
@@ -3635,8 +3647,6 @@ server <- function(input, output, session) {
       #membership(sgc)
       #clusters <- data.frame(sgc$membership,vertices)
       
-      print("=============")
-      print(length(grafo))
       sgc_2 <- cluster_spinglass(grafo, weights = E(grafo)$flujo,spins=25)
       clusters_2 <- data.frame(sgc_2$membership,vertices)
       
