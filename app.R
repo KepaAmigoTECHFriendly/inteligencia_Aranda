@@ -1195,7 +1195,7 @@ server <- function(input, output, session) {
         # Manejo de error: "inexistencia de datos para los filtros seleccionados" de cara al usuario
         shiny::validate(
           need(!is.null(input$div_cnae_borme),
-               "Atención!\nNo se ha seleccionado ningún CNAE.\nSeleccione un CNAE por favor.")
+               "¡Atención!\nNo se ha seleccionado ningún CNAE.\nSeleccione un CNAE por favor.")
         )
         
         if(input$div_cnae_borme == "Todos"){  
@@ -2564,7 +2564,7 @@ server <- function(input, output, session) {
       df$Mes <- substring(df$Mes,6,7)
       
       df <- rbind(df8,df)
-      df <- unique(df)
+      df <- df[rownames(df) == rownames(unique(df[,c(1,2)])),] 
       
       # Manejo de error: "inexistencia de datos para los filtros seleccionados" de cara al usuario
       shiny::validate(
@@ -2882,7 +2882,7 @@ server <- function(input, output, session) {
       # Manejo de error: "inexistencia de datos para los filtros seleccionados" de cara al usuario
       shiny::validate(
         need(!is.null(input$div_cnae),
-             "Atención!\nNo se ha seleccionado ningún CNAE.\nSeleccione un CNAE por favor.")
+             "¡Atención!\nNo se ha seleccionado ningún CNAE.\nSeleccione un CNAE por favor.")
       )
       
       if(input$div_cnae == "Todos"){  
@@ -3018,7 +3018,7 @@ server <- function(input, output, session) {
       # Manejo de error: "inexistencia de datos para los filtros seleccionados" de cara al usuario
       shiny::validate(
         need(nrow(df) != 0,
-             "Atención!\nNo existen datos disponibles para el valor de los filtros seleccionados.\nModifique el valor de los filtros si lo desea.")
+             "¡Atención!\nNo existen datos disponibles para el valor de los filtros seleccionados.\nModifique el valor de los filtros si lo desea.")
       )
 
       # Links URL y RRSS
@@ -3039,7 +3039,7 @@ server <- function(input, output, session) {
       # Manejo de error: "inexistencia de datos para los filtros seleccionados" de cara al usuario
       shiny::validate(
         need(nrow(df) != 0,
-             "Atención!\nNo existen datos disponibles para el valor de los filtros seleccionados.\nModifique el valor de los filtros si lo desea.")
+             "¡Atención!\nNo existen datos disponibles para el valor de los filtros seleccionados.\nModifique el valor de los filtros si lo desea.")
       )
       
       df <- datatable(df, extensions = c('FixedHeader','Buttons','ColReorder'), options = list(pageLength = 5,
@@ -3061,7 +3061,7 @@ server <- function(input, output, session) {
       
       shiny::validate(
         need(nrow(df_tabla_censo) != 0,
-             "Atención!\nNo existen datos disponibles para el valor de los filtros seleccionados.\nModifique el valor de los filtros si lo desea.")
+             "¡Atención!\nNo existen datos disponibles para el valor de los filtros seleccionados.\nModifique el valor de los filtros si lo desea.")
       )
       
       # Filtrado por selección de registro en la tabla
@@ -3125,7 +3125,7 @@ server <- function(input, output, session) {
       # Manejo de error: "inexistencia de datos para los filtros seleccionados" de cara al usuario
       shiny::validate(
         need(nrow(df) != 0,
-             "Atención!\nNo existen datos disponibles para el valor de los filtros seleccionados.\nModifique el valor de los filtros si lo desea.")
+             "¡Atención!\nNo existen datos disponibles para el valor de los filtros seleccionados.\nModifique el valor de los filtros si lo desea.")
       )
       
       # 2) Filtro por num empleados
@@ -3143,7 +3143,7 @@ server <- function(input, output, session) {
       # Manejo de error: "inexistencia de datos para los filtros seleccionados" de cara al usuario
       shiny::validate(
         need(nrow(df) != 0 & !is.null(input$municipio_bodegas),
-             "Atención!\nNo existen datos disponibles para el valor de los filtros seleccionados.\nModifique el valor de los filtros si lo desea.")
+             "¡Atención!\nNo existen datos disponibles para el valor de los filtros seleccionados.\nModifique el valor de los filtros si lo desea.")
       )
       
       # 4) Filtro por municipio
@@ -3157,7 +3157,7 @@ server <- function(input, output, session) {
       # Manejo de error: "inexistencia de datos para los filtros seleccionados" de cara al usuario
       shiny::validate(
         need(nrow(df) != 0,
-             "Atención!\nNo existen datos disponibles para el valor de los filtros seleccionados.\nModifique el valor de los filtros si lo desea.")
+             "¡Atención!\nNo existen datos disponibles para el valor de los filtros seleccionados.\nModifique el valor de los filtros si lo desea.")
       )
       
       df[df == ""] <- "-"
@@ -3174,7 +3174,7 @@ server <- function(input, output, session) {
       # Manejo de error: "inexistencia de datos para los filtros seleccionados" de cara al usuario
       shiny::validate(
         need(nrow(df) != 0,
-             "Atención!\nNo existen datos disponibles para el valor de los filtros seleccionados.\nModifique el valor de los filtros si lo desea.")
+             "¡Atención!\nNo existen datos disponibles para el valor de los filtros seleccionados.\nModifique el valor de los filtros si lo desea.")
       )
       
       # 7) Filtrad por palabra clave
@@ -3190,7 +3190,7 @@ server <- function(input, output, session) {
       # Manejo de error: "inexistencia de datos para los filtros seleccionados" de cara al usuario
       shiny::validate(
         need(nrow(df) != 0,
-             "Atención!\nNo existen datos disponibles para el valor de los filtros seleccionados.\nModifique el valor de los filtros si lo desea.")
+             "¡Atención!\nNo existen datos disponibles para el valor de los filtros seleccionados.\nModifique el valor de los filtros si lo desea.")
       )
       
       df <- df[,c(1,2,5,6,7,8,10,9,21,11,12,20,23,19,18,16,15,17,13,14,3,4)]
@@ -3242,7 +3242,7 @@ server <- function(input, output, session) {
       # Manejo de error: "inexistencia de datos para los filtros seleccionados" de cara al usuario
       shiny::validate(
         need(nrow(df) != 0,
-             "Atención!\nNo existen datos disponibles para el valor de los filtros seleccionados.\nModifique el valor de los filtros si lo desea.")
+             "¡Atención!\nNo existen datos disponibles para el valor de los filtros seleccionados.\nModifique el valor de los filtros si lo desea.")
       )
       
       # Links URL y RRSS
@@ -3263,7 +3263,7 @@ server <- function(input, output, session) {
       # Manejo de error: "inexistencia de datos para los filtros seleccionados" de cara al usuario
       shiny::validate(
         need(nrow(df) != 0,
-             "Atención!\nNo existen datos disponibles para el valor de los filtros seleccionados.\nModifique el valor de los filtros si lo desea.")
+             "¡Atención!\nNo existen datos disponibles para el valor de los filtros seleccionados.\nModifique el valor de los filtros si lo desea.")
       )
       
       df <- datatable(df, extensions = c('FixedHeader','Buttons','ColReorder'), options = list(pageLength = 5,
@@ -3297,7 +3297,7 @@ server <- function(input, output, session) {
 
       shiny::validate(
         need(!is.null(input$categoria),
-             "Atención!\nNo se ha seleccionado ninguna categoría.\nSeleccione una categoría por favor.")
+             "¡Atención!\nNo se ha seleccionado ninguna categoría.\nSeleccione una categoría por favor.")
       )
 
       # 1) Filtro por categoria
@@ -3357,7 +3357,7 @@ server <- function(input, output, session) {
       
       shiny::validate(
         need(!is.null(input$categoria),
-             "Atención!\nNo se ha seleccionado ninguna categoría.\nSeleccione una categoría por favor.")
+             "¡Atención!\nNo se ha seleccionado ninguna categoría.\nSeleccione una categoría por favor.")
       )
       
       # 1) Filtro por categoria
@@ -3433,7 +3433,7 @@ server <- function(input, output, session) {
       
       shiny::validate(
         need(nrow(df) != 0,
-             "Atención!\nNo existen datos disponibles para el valor de los filtros seleccionados.\nModifique el valor de los filtros si lo desea.")
+             "¡Atención!\nNo existen datos disponibles para el valor de los filtros seleccionados.\nModifique el valor de los filtros si lo desea.")
       )
       
       df$Representación <- round(df$Representación,2)
@@ -3468,7 +3468,7 @@ server <- function(input, output, session) {
       # Manejo de error: "inexistencia de datos para los filtros seleccionados" de cara al usuario
       shiny::validate(
         need(nrow(d) != 0,
-             "Atención!\nNo existen datos disponibles para el valor de los filtros seleccionados.\nModifique el valor de los filtros si lo desea.")
+             "¡Atención!\nNo existen datos disponibles para el valor de los filtros seleccionados.\nModifique el valor de los filtros si lo desea.")
       )
       
       w <- wordcloud(words = d$word, freq = d$freq, min.freq = 1,
@@ -3510,7 +3510,7 @@ server <- function(input, output, session) {
       # Manejo de error: "inexistencia de datos para los filtros seleccionados" de cara al usuario
       shiny::validate(
         need(nrow(df) != 0,
-             "Atención!\nNo existen datos disponibles para el valor de los filtros seleccionados.\nModifique el valor de los filtros si lo desea.")
+             "¡Atención!\nNo existen datos disponibles para el valor de los filtros seleccionados.\nModifique el valor de los filtros si lo desea.")
       )
       
       # Links URL y RRSS
@@ -3521,7 +3521,7 @@ server <- function(input, output, session) {
       # Manejo de error: "inexistencia de datos para los filtros seleccionados" de cara al usuario
       shiny::validate(
         need(nrow(df) != 0,
-             "Atención!\nNo existen datos disponibles para el valor de los filtros seleccionados.\nModifique el valor de los filtros si lo desea.")
+             "¡Atención!\nNo existen datos disponibles para el valor de los filtros seleccionados.\nModifique el valor de los filtros si lo desea.")
       )
       
       df <- df[,c(1:13,15,14)]
@@ -3642,10 +3642,13 @@ server <- function(input, output, session) {
       betweenness_grafo
       
       #clusters
-      
-      #sgc <- spinglass.community(grafo, weights = E(grafo)$flujo, spins=25)
-      #membership(sgc)
-      #clusters <- data.frame(sgc$membership,vertices)
+      comp <- components(grafo)
+
+      # Manejo de error: "inexistencia de datos para los filtros seleccionados" de cara al usuario
+      shiny::validate(
+        need(length(comp$csize) == 1,
+             "¡Atención!\nNo es posible generar el gráfico para los filtros seleccionados.\nModifique el valor de los filtros si lo desea.")
+      )
       
       sgc_2 <- cluster_spinglass(grafo, weights = E(grafo)$flujo,spins=25)
       clusters_2 <- data.frame(sgc_2$membership,vertices)
