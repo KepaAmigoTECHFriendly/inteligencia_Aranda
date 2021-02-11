@@ -2556,6 +2556,9 @@ server <- function(input, output, session) {
         dplyr::group_by(`Forma Jurídica`,Mes) %>% 
         dplyr::ungroup() %>%
         tidyr::complete(`Forma Jurídica`, Mes, fill = list(Recuento = 0))
+      
+      df <- df[!is.na(df$`Forma Jurídica`),]
+      df8 <- df8[!is.na(df8$`Forma Jurídica`),]
 
       # generación de nuvas formas jurídicas (forma + año) y paso de año-mes a mes
       df8$`Forma Jurídica` <- paste(df8$`Forma Jurídica`,substring(df8$Mes,1,4),sep = "-")
@@ -2564,7 +2567,8 @@ server <- function(input, output, session) {
       df$Mes <- substring(df$Mes,6,7)
       
       df <- rbind(df8,df)
-      df <- df[rownames(df) == rownames(unique(df[,c(1,2)])),] 
+      df <- df[!duplicated(df[c(1,2)]),]
+      df <- df[order(df$Mes),]
       
       # Manejo de error: "inexistencia de datos para los filtros seleccionados" de cara al usuario
       shiny::validate(
