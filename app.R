@@ -167,6 +167,7 @@ names(lista_variables_borme) <- c("uno","dos","tres","cuatro","cinco","seis","si
 nombres_variables <- c(1,2,3,4,5,6,7,8,9,10,11,12)
 names(nombres_variables) <- c("Constitución","Cambios","Nombramientos","Nada","Fusión","Disolución","Extinción","Escisión","Transformación","Situación concursal","Ampliación de capital","Reducción de capital")
 
+con %>% dbDisconnect()
 #=====================================================
 # INTERFAZ DE USUARIO
 #=====================================================
@@ -633,6 +634,7 @@ server <- function(input, output, session) {
       fecha_final <- input$fechas_listado_borme[2]
       
       if(fecha_inicial < datos$fechas_actual[1] | fecha_final > datos$fechas_actual[2]){
+        con <- dbConnect(RPostgres::Postgres(), dbname = db, host=host_db, port=db_port, user=db_user, password=db_password)
         
         datos$fechas_actual <- c(fecha_inicial,fecha_final)
         
@@ -778,6 +780,7 @@ server <- function(input, output, session) {
         datos_borme$`Constitución capital`[!grepl("[a-d]",datos_borme$`Constitución capital`) & datos_borme$`Constitución capital` != "-"] <- format(as.numeric(datos_borme$`Constitución capital`[!grepl("[a-d]",datos_borme$`Constitución capital`) & datos_borme$`Constitución capital` != "-"]), big.mark = ".")
         
         datos$borme = datos_borme
+        con %>% dbDisconnect()
       }
       
     })
@@ -786,6 +789,7 @@ server <- function(input, output, session) {
     observeEvent(input$tabs_borme, {
       
       if(input$tabs_borme == "Descripción mensual"){
+        con <- dbConnect(RPostgres::Postgres(), dbname = db, host=host_db, port=db_port, user=db_user, password=db_password)
         # Consulta a BBDD
         fecha_inicial <- input$fechas_listado_borme[1]
         fecha_final <- input$fechas_listado_borme[2]
@@ -936,6 +940,7 @@ server <- function(input, output, session) {
           
           datos$borme_anterior = datos_borme
         }
+        con %>% dbDisconnect()
       }
     })
     
@@ -943,6 +948,7 @@ server <- function(input, output, session) {
     # 1) Llamada para estado actual
     observeEvent(input$menu, {
       if(input$menu == "Establecimientos" | input$menu == "Censo de empresas"){
+        con <- dbConnect(RPostgres::Postgres(), dbname = db, host=host_db, port=db_port, user=db_user, password=db_password)
         fecha_inicial <- input$fechas_establecimientos[1]
         fecha_final <- input$fechas_establecimientos[2]
         
@@ -976,6 +982,7 @@ server <- function(input, output, session) {
         progress$close()
         
         datos_estblecimientos_actual$establecimientos = df_establecimientos
+        con %>% dbDisconnect()
         
       }
     })
@@ -983,6 +990,7 @@ server <- function(input, output, session) {
     # 2) Llamada para estado temporal
     observeEvent(input$fechas_establecimientos, {
       if(input$tabs_establecimientos == "Evolución temporal"){
+        con <- dbConnect(RPostgres::Postgres(), dbname = db, host=host_db, port=db_port, user=db_user, password=db_password)
         fecha_inicial <- input$fechas_establecimientos[1]
         fecha_final <- input$fechas_establecimientos[2]
         
@@ -1018,6 +1026,7 @@ server <- function(input, output, session) {
         datos_estblecimientos_temporal$establecimientos = df_establecimientos
         datos_estblecimientos_temporal$flag=1
         
+        con %>% dbDisconnect()
       }
     })
     
@@ -3679,6 +3688,11 @@ server <- function(input, output, session) {
       
       g
       
+    })
+    
+    # FUNCIÓN A EJECUTAR AL CIERRE DE LA APLICACIÓN
+    session$onSessionEnded(function() {
+      con %>% dbDisconnect()
     })
 }
 
