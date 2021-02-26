@@ -1984,7 +1984,7 @@ server <- function(input, output, session) {
         variable <- "Cambio domicilio social"
       }
       shiny::validate(
-        need(any(grepl(variable,colnames(na.omit(df_tabla)))) & nrow(na.omit(df_tabla)) != 0,
+        need(any(grepl(variable,colnames(df_tabla))) & length(na.omit(df_tabla$`Denominación social`)) != 0,
              "¡Atención!\nNo existen datos disponibles para el valor de los filtros seleccionados.\nModifica el valor de los filtros si lo desea."
         )
       )
@@ -2728,12 +2728,12 @@ server <- function(input, output, session) {
       df_filtrados <- datos_filtrados_borme()
       
       shiny::validate(
-        need(nrow(na.omit(df_filtrados)) != 0,
+        need(length(na.omit(df_filtrados$`Denominación social`)) != 0,
              "¡Atención!\nNo existen datos disponibles para el valor de los filtros seleccionados.\nModifica el valor de los filtros si lo desea."
         )
       )
-      df_filtrados <- df_filtrados[as.numeric(df_filtrados$Latitud) > 41 & as.numeric(df_filtrados$Longitud) < -1.3,]
       
+      df_filtrados <- df_filtrados[as.numeric(df_filtrados$Latitud) > 41 & as.numeric(df_filtrados$Longitud) < -1.3,]
       
       if(input$variables_mapa == 1){
         variable <- "Constitución objeto social"
@@ -2742,8 +2742,9 @@ server <- function(input, output, session) {
         variable <- "Cambio domicilio social"
         pos <- 2
       }
+      
       shiny::validate(
-        need(any(grepl(variable,colnames(na.omit(df_filtrados)))) & nrow(na.omit(df_filtrados)) != 0,
+        need(any(grepl(variable,colnames(df_filtrados))) & length(na.omit(df_filtrados$`Denominación social`)) != 0,
              "¡Atención!\nNo existen datos disponibles para el valor de los filtros seleccionados.\nModifica el valor de los filtros si lo desea."
         )
       )
