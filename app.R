@@ -1143,10 +1143,14 @@ server <- function(input, output, session) {
 
         df <- datos$borme  #Llamada a API
         
+        if(df == 0){
+          return(0)
+        }
+        
         #Filtro fecha
         df <- df[as.Date(df$Fecha, format="%d/%m/%Y") >= input$fechas_listado_borme[1] & as.Date(df$Fecha, format="%d/%m/%Y") <= input$fechas_listado_borme[2],]
         
-        if(df == 0){
+        if(nrow(df) == 0){
           return(0)
         }
         
@@ -1984,7 +1988,12 @@ server <- function(input, output, session) {
         variable <- "Cambio domicilio social"
       }
       shiny::validate(
-        need(any(grepl(variable,colnames(df_tabla))) & length(na.omit(df_tabla$`Denominación social`)) != 0,
+        need(df_tabla != 0,
+        "¡Atención!\nNo existen datos disponibles para el valor de los filtros seleccionados.\nModifica el valor de los filtros si lo desea."
+        )
+      )
+      shiny::validate(
+        need(any(grepl(variable,colnames(df_tabla))) & length(na.omit(df_tabla$`Denominación social`)) != 0 & df_tabla != 0,
              "¡Atención!\nNo existen datos disponibles para el valor de los filtros seleccionados.\nModifica el valor de los filtros si lo desea."
         )
       )
@@ -2726,7 +2735,12 @@ server <- function(input, output, session) {
     output$mapa_borme <- renderLeaflet({
       
       df_filtrados <- datos_filtrados_borme()
-      
+
+      shiny::validate(
+        need(df_filtrados != 0,
+             "¡Atención!\nNo existen datos disponibles para el valor de los filtros seleccionados.\nModifica el valor de los filtros si lo desea."
+        )
+      )
       shiny::validate(
         need(length(na.omit(df_filtrados$`Denominación social`)) != 0,
              "¡Atención!\nNo existen datos disponibles para el valor de los filtros seleccionados.\nModifica el valor de los filtros si lo desea."
